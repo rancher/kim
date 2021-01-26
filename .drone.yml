@@ -8,21 +8,45 @@ platform:
   arch: amd64
 
 steps:
-  - name: build-binaries
-    image: rancher/dapper:v0.5.0
+  - name: prepare
+    image: library/docker:20-git
     environment:
       GOLANG: golang:1.16beta1-alpine
     commands:
-      - dapper -f Dockerfile --target dapper make GOOS=linux GOARCH=amd64 DRONE_TAG=${DRONE_TAG} dist
-      - dapper -f Dockerfile --target dapper make GOOS=linux GOARCH=arm64 DRONE_TAG=${DRONE_TAG} dist
-      - dapper -f Dockerfile --target dapper make GOOS=darwin GOARCH=amd64 DRONE_TAG=${DRONE_TAG} dist
-      - dapper -f Dockerfile --target dapper make GOOS=darwin GOARCH=arm64 DRONE_TAG=${DRONE_TAG} dist
-      - dapper -f Dockerfile --target dapper make GOOS=windows GOARCH=amd64 DRONE_TAG=${DRONE_TAG} dist
+      - docker build --target docker --build-arg GOLANG --tag local/rancher/kim --tag local/rancher/kim:$(git rev-parse --short HEAD) .
     volumes:
       - name: docker
         path: /var/run/docker.sock
 
-  - name: publish-binaries
+  - name: build
+    image: local/rancher/kim
+    pull: never
+    environment:
+      DOCKER_BUILDKIT: "1"
+      GOLANG: local/rancher/kim
+    commands:
+      - make GOOS=linux   GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=linux   GOARCH=arm64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=darwin  GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=darwin  GOARCH=arm64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=windows GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+
+  - name: image
+    image: local/rancher/kim
+    pull: never
+    environment:
+      DOCKER_BUILDKIT: "1"
+      GOLANG: local/rancher/kim
+    commands:
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+
+  - name: upload
     image: plugins/github-release
     settings:
       api_key:
@@ -43,11 +67,12 @@ steps:
         - refs/head/master
         - refs/tags/*
 
-  - name: publish-images
-    image: rancher/dapper:v0.5.0
+  - name: publish
+    image: local/rancher/kim
+    pull: never
     commands:
       - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make DRONE_TAG=${DRONE_TAG} publish
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} publish
     environment:
       DOCKER_USERNAME:
         from_secret: docker_username
@@ -77,11 +102,33 @@ platform:
   arch: arm64
 
 steps:
-  - name: publish-images
-    image: rancher/dapper:v0.5.0
+  - name: prepare
+    image: library/docker:20-git
+    environment:
+      GOLANG: golang:1.16beta1-alpine
+    commands:
+      - docker build --target docker --build-arg GOLANG --tag local/rancher/kim --tag local/rancher/kim:$(git rev-parse --short HEAD) .
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+
+  - name: image
+    image: local/rancher/kim
+    pull: never
+    environment:
+      GOLANG: local/rancher/kim
+    commands:
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+
+  - name: publish
+    image: local/rancher/kim
+    pull: never
     commands:
       - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make DRONE_TAG=${DRONE_TAG} publish
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} publish
     environment:
       DOCKER_USERNAME:
         from_secret: docker_username
