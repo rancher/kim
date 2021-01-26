@@ -37,6 +37,7 @@ require (
 	github.com/containerd/console v1.0.1
 	github.com/containerd/containerd v1.4.3
 	github.com/containerd/typeurl v1.0.1
+	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker-credential-helpers v0.6.3
 	github.com/docker/go-units v0.4.0
 	github.com/gogo/googleapis v1.3.2

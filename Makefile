@@ -6,15 +6,12 @@ ifeq ($(GOOS),)
 GOOS := $(shell go env GOOS)
 endif
 
-ifneq ($(DRONE_TAG),)
-TAG := $(DRONE_TAG)
-endif
-
 DOCKER_BUILDKIT ?= 1
 
 ORG ?= rancher
 PKG ?= github.com/rancher/kim
-TAG ?= v0.0.0-dev
+TAG ?= $(shell git describe --tags --always)
+IMG := $(ORG)/kim:$(subst +,-,$(TAG))
 
 ifeq ($(GO_BUILDTAGS),)
 GO_BUILDTAGS := static_build,netgo,osusergo
@@ -30,18 +27,19 @@ GO_LDFLAGS += -X $(PKG)/pkg/server.DefaultAgentImage=docker.io/$(ORG)/kim
 
 GO ?= go
 GOLANG ?= docker.io/library/golang:1.15-alpine
+
+BIN ?= bin/kim
 ifeq ($(GOOS),windows)
 BINSUFFIX := .exe
 endif
-BIN ?= bin/kim
 BIN := $(BIN)$(BINSUFFIX)
 
-.PHONY: build package validate ci publish
+.PHONY: build image package publish validate
 build: $(BIN)
-package: | dist image-build
+package: | dist image
+publish: | image image-push image-manifest
 validate:
-publish: | image-build image-push image-manifest
-ci: | build package validate
+
 .PHONY: $(BIN)
 $(BIN):
 	$(GO) build -ldflags "$(GO_LDFLAGS)" -tags "$(GO_BUILDTAGS)" -o $@ .
@@ -53,38 +51,32 @@ dist:
 
 .PHONY: clean
 clean:
-	rm -rf bin dist
+	rm -rf bin dist vendor
 
-.PHONY: image-build
-image-build:
+.PHONY: image
+image:
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build \
 		--build-arg GOLANG=$(GOLANG) \
 		--build-arg ORG=$(ORG) \
 		--build-arg PKG=$(PKG) \
 		--build-arg TAG=$(TAG) \
-		--tag $(ORG)/kim:$(TAG) \
-		--tag $(ORG)/kim:$(TAG)-$(GOARCH) \
+		--tag $(IMG) \
+		--tag $(IMG)-$(GOARCH) \
 	.
 
 .PHONY: image-push
 image-push:
-	docker push $(ORG)/kim:$(TAG)-$(GOARCH)
+	docker push $(IMG)-$(GOARCH)
 
 .PHONY: image-manifest
 image-manifest:
 	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend \
-		$(ORG)/kim:$(TAG) \
-		$(ORG)/kim:$(TAG)-$(GOARCH)
+		$(IMG) \
+		$(IMG)-$(GOARCH)
 	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push \
-		$(ORG)/kim:$(TAG)
+		$(IMG)
 
-./.dapper:
-	@echo Downloading dapper
-	@curl -sL https://releases.rancher.com/dapper/v0.5.0/dapper-$$(uname -s)-$$(uname -m) > .dapper.tmp
-	@@chmod +x .dapper.tmp
-	@./.dapper.tmp -v
-	@mv .dapper.tmp .dapper
-
-dapper-%: .dapper
-	@mkdir -p ./bin/ ./dist/
-	env DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) ./.dapper -f Dockerfile --target dapper make $*
+# use this target to test drone builds locally
+.PHONY: drone-local
+drone-local:
+	DRONE_TAG=v0.0.0-dev.0+drone drone exec --trusted
