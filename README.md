@@ -1,8 +1,6 @@
 kim - The Kubernetes Image Manager
 ==================================
 
-In ur kubernetes buildin' ur imagez.
-
 ***STATUS: EXPERIMENT - Let us know what you think***
 
 This project is a continuation of the experiment started with `k3c`, however, unlike the original aim/design for `k3c`,
