@@ -107,8 +107,9 @@ steps:
     image: library/docker:20-git
     environment:
       GOLANG: golang:1.16beta1-alpine
+      IMAGE: drone.cattle.io/rancher/kim
     commands:
-      - docker build --target docker --build-arg GOLANG --tag drone.cattle.io/rancher/kim:possible --tag drone.cattle.io/rancher/kim:$(git rev-parse --short HEAD) .
+      - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
     volumes:
       - name: docker
         path: /var/run/docker.sock
