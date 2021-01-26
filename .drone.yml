@@ -12,18 +12,19 @@ steps:
     image: library/docker:20-git
     environment:
       GOLANG: golang:1.16beta1-alpine
+      IMAGE: drone.cattle.io/rancher/kim
     commands:
-      - docker build --target docker --build-arg GOLANG --tag local/rancher/kim --tag local/rancher/kim:$(git rev-parse --short HEAD) .
+      - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
     volumes:
       - name: docker
         path: /var/run/docker.sock
 
   - name: build
-    image: local/rancher/kim
+    image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
       DOCKER_BUILDKIT: "1"
-      GOLANG: local/rancher/kim
+      GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
       - make GOOS=linux   GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
       - make GOOS=linux   GOARCH=arm64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
@@ -35,11 +36,11 @@ steps:
         path: /var/run/docker.sock
 
   - name: image
-    image: local/rancher/kim
+    image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
       DOCKER_BUILDKIT: "1"
-      GOLANG: local/rancher/kim
+      GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
       - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
     volumes:
@@ -68,7 +69,7 @@ steps:
         - refs/tags/*
 
   - name: publish
-    image: local/rancher/kim
+    image: drone.cattle.io/rancher/kim:possible
     pull: never
     commands:
       - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
@@ -107,16 +108,16 @@ steps:
     environment:
       GOLANG: golang:1.16beta1-alpine
     commands:
-      - docker build --target docker --build-arg GOLANG --tag local/rancher/kim --tag local/rancher/kim:$(git rev-parse --short HEAD) .
+      - docker build --target docker --build-arg GOLANG --tag drone.cattle.io/rancher/kim:possible --tag drone.cattle.io/rancher/kim:$(git rev-parse --short HEAD) .
     volumes:
       - name: docker
         path: /var/run/docker.sock
 
   - name: image
-    image: local/rancher/kim
+    image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
-      GOLANG: local/rancher/kim
+      GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
       - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
     volumes:
@@ -124,7 +125,7 @@ steps:
         path: /var/run/docker.sock
 
   - name: publish
-    image: local/rancher/kim
+    image: drone.cattle.io/rancher/kim:possible
     pull: never
     commands:
       - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
