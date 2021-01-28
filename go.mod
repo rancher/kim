@@ -4,7 +4,7 @@ go 1.15
 
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v14.0.0+incompatible
-	github.com/containerd/containerd => github.com/k3s-io/containerd v1.4.3-k3s2
+	github.com/containerd/containerd => github.com/containerd/containerd v1.4.1-0.20201117152358-0edc412565dc
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305 // same as buildkit
 	k8s.io/api => github.com/k3s-io/kubernetes/staging/src/k8s.io/api v1.19.5-k3s1
 	k8s.io/apiextensions-apiserver => github.com/k3s-io/kubernetes/staging/src/k8s.io/apiextensions-apiserver v1.19.5-k3s1

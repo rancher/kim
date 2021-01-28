@@ -9,6 +9,8 @@ import (
 
 	"github.com/containerd/console"
 	buildkit "github.com/moby/buildkit/client"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/session/auth/authprovider"
 	"github.com/moby/buildkit/util/progress/progressui"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/sirupsen/logrus"
@@ -38,6 +40,7 @@ func (s *BuildImage) Invoke(ctx context.Context, k8s *client.Interface, path str
 			Frontend:      s.Frontend(),
 			FrontendAttrs: s.FrontendAttrs(),
 			LocalDirs:     s.LocalDirs(path),
+			Session:       []session.Attachable{authprovider.NewDockerAuthProvider(os.Stdout)},
 		}
 		if len(s.Tag) > 0 {
 			options.Exports = defaultExporter(s.Tag[0])
