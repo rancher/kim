@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os/exec"
+	"sync"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker-credential-helpers/client"
@@ -10,20 +11,25 @@ import (
 )
 
 func RegisterDockerCredentialHelper(name string) {
-	credentialprovider.RegisterCredentialProvider(name, &helperConfigProvider{helper: name})
+	credentialprovider.RegisterCredentialProvider(name, &dockerCredentialHelper{name: name})
 }
 
-type helperConfigProvider struct {
-	helper string
+type dockerCredentialHelper struct {
+	name    string
+	once    sync.Once
+	enabled bool
 }
 
-func (p *helperConfigProvider) Enabled() bool {
-	_, err := exec.LookPath(fmt.Sprintf("docker-credential-%s", p.helper))
-	return err == nil
+func (p *dockerCredentialHelper) Enabled() bool {
+	p.once.Do(func() {
+		_, err := exec.LookPath(fmt.Sprintf("docker-credential-%s", p.name))
+		p.enabled = err == nil
+	})
+	return p.enabled
 }
 
-func (p *helperConfigProvider) Provide(image string) credentialprovider.DockerConfig {
-	helper := client.NewShellProgramFunc(fmt.Sprintf("docker-credential-%s", p.helper))
+func (p *dockerCredentialHelper) Provide(image string) credentialprovider.DockerConfig {
+	helper := client.NewShellProgramFunc(fmt.Sprintf("docker-credential-%s", p.name))
 	config := credentialprovider.DockerConfig{}
 	repository := imageToRepositoryURL(image)
 	credentials, err := client.Get(helper, repository)
