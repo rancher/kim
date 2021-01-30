@@ -3,6 +3,7 @@ package action
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/pkg/errors"
 	"github.com/rancher/kim/pkg/client"
@@ -47,42 +48,55 @@ func (_ *InstallBuilder) Namespace(_ context.Context, k *client.Interface) error
 	})
 }
 
-func (a *InstallBuilder) containerPort(name string) corev1.ContainerPort {
-	switch name {
-	case "buildkit":
-		return corev1.ContainerPort{
-			Name:          name,
-			ContainerPort: int32(a.BuildkitPort),
-			Protocol:      corev1.ProtocolTCP,
+func (a *InstallBuilder) Secrets(_ context.Context, k *client.Interface) error {
+	secrets := k.Core.Secret()
+	if a.Force {
+		deletePropagation := metav1.DeletePropagationBackground
+		deleteOptions := metav1.DeleteOptions{
+			PropagationPolicy: &deletePropagation,
 		}
-	case "kim":
-		return corev1.ContainerPort{
-			Name:          name,
-			ContainerPort: int32(a.AgentPort),
-			Protocol:      corev1.ProtocolTCP,
-		}
-	default:
-		return corev1.ContainerPort{Name: name}
+		secrets.Delete(k.Namespace, "kim-tls-client", &deleteOptions)
+		secrets.Delete(k.Namespace, "kim-tls-server", &deleteOptions)
+		secrets.Delete(k.Namespace, "kim-tls-ca", &deleteOptions)
 	}
-}
 
-func (a *InstallBuilder) servicePort(name string) corev1.ServicePort {
-	switch name {
-	case "buildkit":
-		return corev1.ServicePort{
-			Name:     name,
-			Port:     int32(a.BuildkitPort),
-			Protocol: corev1.ProtocolTCP,
-		}
-	case "kim":
-		return corev1.ServicePort{
-			Name:     name,
-			Port:     int32(a.AgentPort),
-			Protocol: corev1.ProtocolTCP,
-		}
-	default:
-		return corev1.ServicePort{Name: name}
+	// assert CA
+	caCert, caKey, err := client.LoadOrGenCA(secrets, k.Namespace, "kim-tls-ca")
+	if err != nil {
+		return errors.Wrap(err, "failed to assert certificate authority")
 	}
+	nodeList, err := k.Core.Node().List(metav1.ListOptions{
+		LabelSelector: "node-role.kubernetes.io/builder==true",
+	})
+	if err != nil {
+		return err
+	}
+
+	ips := []net.IP{}
+	domains := []string{
+		fmt.Sprintf("builder.%s.svc", k.Namespace),
+	}
+	for _, node := range nodeList.Items {
+		for _, addr := range node.Status.Addresses {
+			switch addr.Type {
+			case corev1.NodeInternalIP:
+				ips = append(ips, net.ParseIP(addr.Address))
+			case corev1.NodeHostName:
+				domains = append(domains, addr.Address)
+			}
+		}
+	}
+	// assert server cert+key
+	_, _, err = client.LoadOrGenServerCert(secrets, k.Namespace, "kim-tls-server", caCert, caKey, "kube-image-server", nil, domains, ips)
+	if err != nil {
+		return errors.Wrap(err, "failed to assert server cert+key")
+	}
+	// assert client cert+key
+	_, _, err = client.LoadOrGenClientCert(secrets, k.Namespace, "kim-tls-client", caCert, caKey, "kube-image-client")
+	if err != nil {
+		return errors.Wrap(err, "failed to assert client cert+key")
+	}
+	return nil
 }
 
 func (a *InstallBuilder) Service(_ context.Context, k *client.Interface) error {
@@ -141,11 +155,17 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 		}
 		k.Apps.DaemonSet().Delete(k.Namespace, "builder", &deleteOptions)
 	}
-	privileged := true
-	hostPathDirectory := corev1.HostPathDirectory
-	hostPathDirectoryOrCreate := corev1.HostPathDirectoryOrCreate
-	mountPropagationBidirectional := corev1.MountPropagationBidirectional
-	containerProbe := corev1.Probe{
+
+	agentImage, err := a.GetAgentImage()
+	if err != nil {
+		return err
+	}
+
+	buildkitImage, err := a.GetBuildkitImage()
+	if err != nil {
+		return err
+	}
+	buildkitProbe := corev1.Probe{
 		Handler: corev1.Handler{
 			Exec: &corev1.ExecAction{
 				Command: []string{"buildctl", "debug", "workers"},
@@ -154,6 +174,11 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 		InitialDelaySeconds: 5,
 		PeriodSeconds:       20,
 	}
+
+	privileged := true
+	hostPathDirectory := corev1.HostPathDirectory
+	hostPathDirectoryOrCreate := corev1.HostPathDirectoryOrCreate
+	mountPropagationBidirectional := corev1.MountPropagationBidirectional
 
 	daemon := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -192,7 +217,7 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
 					Containers: []corev1.Container{{
 						Name:  "buildkit",
-						Image: a.GetBuildkitImage(),
+						Image: buildkitImage,
 						Args: []string{
 							fmt.Sprintf("--addr=%s", a.BuildkitSocket),
 							fmt.Sprintf("--addr=tcp://0.0.0.0:%d", a.BuildkitPort),
@@ -200,6 +225,9 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 							fmt.Sprintf("--containerd-worker-addr=%s", a.ContainerdSocket),
 							"--containerd-worker-gc",
 							"--oci-worker=false",
+							"--tlscacert=/certs/ca/tls.crt",
+							"--tlscert=/certs/server/tls.crt",
+							"--tlskey=/certs/server/tls.key",
 						},
 						Ports: []corev1.ContainerPort{
 							a.containerPort("buildkit"),
@@ -210,21 +238,27 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 						VolumeMounts: []corev1.VolumeMount{
 							{Name: "cgroup", MountPath: "/sys/fs/cgroup"},
 							{Name: "run", MountPath: "/run", MountPropagation: &mountPropagationBidirectional},
+							{Name: "tls-ca", MountPath: "/certs/ca", ReadOnly: true},
+							{Name: "tls-server", MountPath: "/certs/server", ReadOnly: true},
 							{Name: "tmp", MountPath: "/tmp", MountPropagation: &mountPropagationBidirectional},
 							{Name: "var-lib-buildkit", MountPath: "/var/lib/buildkit", MountPropagation: &mountPropagationBidirectional},
 							{Name: "var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
 						},
-						ReadinessProbe: &containerProbe,
-						LivenessProbe:  &containerProbe,
+						ReadinessProbe: &buildkitProbe,
+						LivenessProbe:  &buildkitProbe,
 					}, {
 						Name:    "agent",
-						Image:   a.GetAgentImage(),
+						Image:   agentImage,
 						Command: []string{"kim", "--debug", "agent"},
 						Args: []string{
 							fmt.Sprintf("--agent-port=%d", a.AgentPort),
+							fmt.Sprintf("--buildkit-namespace=%s", a.BuildkitNamespace),
 							fmt.Sprintf("--buildkit-socket=%s", a.BuildkitSocket),
 							fmt.Sprintf("--buildkit-port=%d", a.BuildkitPort),
 							fmt.Sprintf("--containerd-socket=%s", a.ContainerdSocket),
+							"--tlscacert=/certs/ca/tls.crt",
+							"--tlscert=/certs/server/tls.crt",
+							"--tlskey=/certs/server/tls.key",
 						},
 						Ports: []corev1.ContainerPort{
 							a.containerPort("kim"),
@@ -236,10 +270,19 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 							{Name: "etc-pki", MountPath: "/etc/pki", ReadOnly: true},
 							{Name: "etc-ssl", MountPath: "/etc/ssl", ReadOnly: true},
 							{Name: "run", MountPath: "/run", MountPropagation: &mountPropagationBidirectional},
+							{Name: "tls-ca", MountPath: "/certs/ca", ReadOnly: true},
+							{Name: "tls-server", MountPath: "/certs/server", ReadOnly: true},
 							{Name: "var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
 						},
 					}},
 					Volumes: []corev1.Volume{
+						{
+							Name: "cgroup", VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/sys/fs/cgroup", Type: &hostPathDirectory,
+								},
+							},
+						},
 						{
 							Name: "etc-pki", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
@@ -255,16 +298,23 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 							},
 						},
 						{
-							Name: "cgroup", VolumeSource: corev1.VolumeSource{
+							Name: "run", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/sys/fs/cgroup", Type: &hostPathDirectory,
+									Path: "/run", Type: &hostPathDirectory,
 								},
 							},
 						},
 						{
-							Name: "run", VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/run", Type: &hostPathDirectory,
+							Name: "tls-ca", VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "kim-tls-ca",
+								},
+							},
+						},
+						{
+							Name: "tls-server", VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "kim-tls-server",
 								},
 							},
 						},
@@ -294,9 +344,9 @@ func (a *InstallBuilder) DaemonSet(_ context.Context, k *client.Interface) error
 			},
 		},
 	}
-	_, err := k.Apps.DaemonSet().Create(daemon)
+	_, err = k.Apps.DaemonSet().Create(daemon)
 	if apierr.IsAlreadyExists(err) {
-		return errors.Errorf("buildkit already installed, pass the --force option to recreate")
+		return errors.Errorf("buildkit already installed, specify --force to recreate")
 	}
 	return err
 }
@@ -322,4 +372,42 @@ func (a *InstallBuilder) NodeRole(_ context.Context, k *client.Interface) error 
 		})
 	}
 	return errors.Errorf("too many nodes, please specify a selector, e.g. k3s.io/hostname=%s", nodeList.Items[0].Name)
+}
+
+func (a *InstallBuilder) containerPort(name string) corev1.ContainerPort {
+	switch name {
+	case "buildkit":
+		return corev1.ContainerPort{
+			Name:          name,
+			ContainerPort: int32(a.BuildkitPort),
+			Protocol:      corev1.ProtocolTCP,
+		}
+	case "kim":
+		return corev1.ContainerPort{
+			Name:          name,
+			ContainerPort: int32(a.AgentPort),
+			Protocol:      corev1.ProtocolTCP,
+		}
+	default:
+		return corev1.ContainerPort{Name: name}
+	}
+}
+
+func (a *InstallBuilder) servicePort(name string) corev1.ServicePort {
+	switch name {
+	case "buildkit":
+		return corev1.ServicePort{
+			Name:     name,
+			Port:     int32(a.BuildkitPort),
+			Protocol: corev1.ProtocolTCP,
+		}
+	case "kim":
+		return corev1.ServicePort{
+			Name:     name,
+			Port:     int32(a.AgentPort),
+			Protocol: corev1.ProtocolTCP,
+		}
+	default:
+		return corev1.ServicePort{Name: name}
+	}
 }

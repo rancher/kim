@@ -3,10 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/containerd/containerd"
+	"github.com/docker/distribution/reference"
 	buildkit "github.com/moby/buildkit/client"
+	"github.com/pkg/errors"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/rancher/kim/pkg/version"
 	"google.golang.org/grpc"
@@ -17,27 +20,16 @@ const (
 	defaultAgentPort     = 1233
 	defaultAgentImage    = "docker.io/rancher/kim"
 	defaultBuildkitImage = "docker.io/moby/buildkit:v0.8.1"
-
-//	defaultBuildkitPort      = 1234
-//	defaultBuildkitAddress   = "unix:///run/buildkit/buildkitd.sock"
-//	defaultBuildkitNamespace = "buildkit"
-//	defaultContainerdAddress = "/run/k3s/containerd/containerd.sock"
 )
 
 var (
 	DefaultAgentPort     = defaultAgentPort
 	DefaultAgentImage    = defaultAgentImage
 	DefaultBuildkitImage = defaultBuildkitImage
-
-//	DefaultBuildkitPort      = defaultBuildkitPort
-//	DefaultBuildkitAddress   = defaultBuildkitAddress
-//	DefaultBuildkitNamespace = defaultBuildkitNamespace
-//	DefaultContainerdAddress = defaultContainerdAddress
-//	DefaultListenAddress     = fmt.Sprintf("tcp://0.0.0.0:%d", defaultAgentPort)
 )
 
 type Config struct {
-	AgentImage        string `usage:"Image to run the agent w/ missing tag inferred from version" default:"docker.io/rancher/kim"`
+	AgentImage        string `usage:"Image to run the agent w/ missing tag inferred from version"`
 	AgentPort         int    `usage:"Port that the agent will listen on" default:"1233"`
 	BuildkitImage     string `usage:"BuildKit image for running buildkitd" default:"docker.io/moby/buildkit:v0.8.1"`
 	BuildkitNamespace string `usage:"BuildKit namespace in containerd (not 'k8s.io')" default:"buildkit"`
@@ -46,22 +38,33 @@ type Config struct {
 	ContainerdSocket  string `usage:"Containerd socket address" default:"/run/k3s/containerd/containerd.sock"`
 }
 
-func (c *Config) GetAgentImage() string {
+func (c *Config) GetAgentImage() (string, error) {
 	if c.AgentImage == "" {
 		c.AgentImage = DefaultAgentImage
 	}
-	// TODO assumes default agent image is tag-less
 	if c.AgentImage == DefaultAgentImage {
-		return fmt.Sprintf("%s:%s", c.AgentImage, version.Version)
+		ref, err := reference.ParseAnyReference(c.AgentImage)
+		if err != nil {
+			return c.AgentImage, errors.Wrap(err, "failed to parse agent image")
+		}
+		if named, ok := ref.(reference.Named); ok {
+			if reference.IsNameOnly(named) {
+				tagged, err := reference.WithTag(named, strings.ReplaceAll(version.Version, "+", "-"))
+				if err != nil {
+					return c.AgentImage, errors.Wrap(err, "failed to append version tag")
+				}
+				return reference.FamiliarString(tagged), nil
+			}
+		}
 	}
-	return c.AgentImage
+	return c.AgentImage, nil
 }
 
-func (c *Config) GetBuildkitImage() string {
+func (c *Config) GetBuildkitImage() (string, error) {
 	if c.BuildkitImage == "" {
 		c.BuildkitImage = DefaultBuildkitImage
 	}
-	return c.BuildkitImage
+	return c.BuildkitImage, nil
 }
 
 func (c *Config) Interface(ctx context.Context, config *client.Config) (*Interface, error) {

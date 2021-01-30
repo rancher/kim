@@ -2,7 +2,10 @@ package action
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 
 	"github.com/containerd/containerd"
@@ -20,6 +23,7 @@ import (
 	"github.com/rancher/kim/pkg/server"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func (s *Agent) Run(ctx context.Context) error {
@@ -46,7 +50,30 @@ func (s *Agent) listenAndServe(ctx context.Context, backend *server.Interface) e
 	}
 	defer listener.Close()
 
-	server := grpc.NewServer()
+	var serverOptions []grpc.ServerOption
+	if s.Tlscert != "" && s.Tlskey != "" && s.Tlscacert != "" {
+		serverCert, err := tls.LoadX509KeyPair(s.Tlscert, s.Tlskey)
+		if err != nil {
+			return err
+		}
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{serverCert},
+			ClientAuth:   tls.NoClientCert,
+		}
+		if s.Tlscacert != "" {
+			caCert, err := ioutil.ReadFile(s.Tlscacert)
+			if err != nil {
+				return err
+			}
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.ClientCAs = x509.NewCertPool()
+			if ok := tlsConfig.ClientCAs.AppendCertsFromPEM(caCert); !ok {
+				return errors.New("failed to append ca certificate")
+			}
+		}
+		serverOptions = append(serverOptions, grpc.Creds(credentials.NewTLS(tlsConfig)))
+	}
+	server := grpc.NewServer(serverOptions...)
 	imagesv1.RegisterImagesServer(server, backend)
 	defer server.Stop()
 	return server.Serve(listener)

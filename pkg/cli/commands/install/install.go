@@ -30,16 +30,21 @@ func (s *CommandSpec) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	// label the node(s)
+	err = s.InstallBuilder.NodeRole(ctx, k8s)
+	if err != nil {
+		return err
+	}
+	// assert secrets
+	err = s.InstallBuilder.Secrets(ctx, k8s)
+	if err != nil {
+		return err
+	}
 	// assert service
 	err = s.InstallBuilder.Service(ctx, k8s)
 	if err != nil {
 		return err
 	}
 	// assert daemonset
-	err = s.InstallBuilder.DaemonSet(ctx, k8s)
-	if err != nil {
-		return err
-	}
-	// label the node(s)
-	return s.InstallBuilder.NodeRole(ctx, k8s)
+	return s.InstallBuilder.DaemonSet(ctx, k8s)
 }
