@@ -2,6 +2,7 @@ ARG GOLANG=golang:1.15-alpine
 FROM ${GOLANG} AS base
 RUN set -x \
  && apk --no-cache add \
+    binutils \
     file \
     git \
     make \
@@ -30,7 +31,7 @@ RUN go mod vendor
 RUN go generate -x
 ARG ORG=rancher
 ARG PKG=github.com/rancher/kim
-ARG TAG=0.0.0-dev
+ARG TAG=0.0.0-dev+possible
 RUN make ORG=${ORG} PKG=${PKG} TAG=${TAG} bin/kim
 RUN file bin/kim
 RUN install -s bin/kim -m 0755 /usr/local/bin

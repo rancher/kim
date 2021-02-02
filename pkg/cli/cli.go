@@ -51,14 +51,14 @@ var (
 )
 
 func Main() *cobra.Command {
-	root := wrangler.Command(&App{}, cobra.Command{
+	cmd := wrangler.Command(&App{}, cobra.Command{
 		Use:                   "kim [OPTIONS] COMMAND",
 		Short:                 "Kubernetes Image Manager -- in ur kubernetes buildin ur imagez",
 		Version:               version.FriendlyVersion(),
 		Example:               "kim build --tag your/image:tag .",
 		DisableFlagsInUseLine: true,
 	})
-	root.AddCommand(
+	cmd.AddCommand(
 		agent.Command(),
 		info.Command(),
 		images.Command(),
@@ -70,13 +70,21 @@ func Main() *cobra.Command {
 		rmi.Command(),
 		tag.Command(),
 	)
-	root.SetUsageTemplate(defaultUsageTemplate)
-	return root
+	cmd.SetUsageTemplate(defaultUsageTemplate)
+	return cmd
 }
 
 type App struct {
 	wrangler.DebugConfig
 	client.Config
+}
+
+func (s *App) Customize(cmd *cobra.Command) {
+	d := cmd.Flag("namespace")
+	if d.DefValue == "" || d.DefValue == "default" {
+		d.DefValue = client.DefaultNamespace
+	}
+	cmd.Flags().AddFlag(d)
 }
 
 func (s *App) Run(cmd *cobra.Command, _ []string) error {
