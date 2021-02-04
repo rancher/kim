@@ -10,8 +10,13 @@ import (
 	"k8s.io/kubernetes/pkg/credentialprovider"
 )
 
+var providers = map[string]bool{}
+
 func RegisterDockerCredentialHelper(name string) {
-	credentialprovider.RegisterCredentialProvider(name, &dockerCredentialHelper{name: name})
+	if registered := providers[name]; !registered {
+		credentialprovider.RegisterCredentialProvider(name, &dockerCredentialHelper{name: name})
+		providers[name] = true
+	}
 }
 
 type dockerCredentialHelper struct {

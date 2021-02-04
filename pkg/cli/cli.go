@@ -1,16 +1,17 @@
 package cli
 
 import (
-	"github.com/rancher/kim/pkg/cli/commands/agent"
-	"github.com/rancher/kim/pkg/cli/commands/build"
-	"github.com/rancher/kim/pkg/cli/commands/images"
-	"github.com/rancher/kim/pkg/cli/commands/info"
-	"github.com/rancher/kim/pkg/cli/commands/install"
-	"github.com/rancher/kim/pkg/cli/commands/pull"
-	"github.com/rancher/kim/pkg/cli/commands/push"
-	"github.com/rancher/kim/pkg/cli/commands/rmi"
-	"github.com/rancher/kim/pkg/cli/commands/tag"
-	"github.com/rancher/kim/pkg/cli/commands/uninstall"
+	"strings"
+
+	"github.com/rancher/kim/pkg/cli/command/agent"
+	"github.com/rancher/kim/pkg/cli/command/image"
+	"github.com/rancher/kim/pkg/cli/command/image/build"
+	"github.com/rancher/kim/pkg/cli/command/image/list"
+	"github.com/rancher/kim/pkg/cli/command/image/pull"
+	"github.com/rancher/kim/pkg/cli/command/image/push"
+	"github.com/rancher/kim/pkg/cli/command/image/remove"
+	"github.com/rancher/kim/pkg/cli/command/image/tag"
+	"github.com/rancher/kim/pkg/cli/command/system"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/rancher/kim/pkg/credential/provider"
 	"github.com/rancher/kim/pkg/version"
@@ -30,8 +31,11 @@ Aliases:
 Examples:
   {{.Example}}{{end}}{{if .HasAvailableSubCommands}}
 
-Available Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+Available Commands:{{range .Commands}}{{if (and (not (index .Annotations "shortcut-root")) (or .IsAvailableCommand (eq .Name "help")))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}{{if (eq (index .Annotations "shortcuts") "image")}}
+
+Images Shortcuts:{{range .Commands}}{{if (and .IsAvailableCommand (eq (index .Annotations "shortcut-root") "image"))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
 Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
@@ -55,23 +59,52 @@ func Main() *cobra.Command {
 		Use:                   "kim [OPTIONS] COMMAND",
 		Short:                 "Kubernetes Image Manager -- in ur kubernetes buildin ur imagez",
 		Version:               version.FriendlyVersion(),
-		Example:               "kim build --tag your/image:tag .",
+		Example:               "kim image build --tag your/image:tag .",
 		DisableFlagsInUseLine: true,
+		Annotations: map[string]string{
+			"shortcuts": "image",
+		},
 	})
 	cmd.AddCommand(
 		agent.Command(),
-		info.Command(),
-		images.Command(),
-		install.Command(),
-		uninstall.Command(),
-		build.Command(),
-		pull.Command(),
-		push.Command(),
-		rmi.Command(),
-		tag.Command(),
+		image.Command(),
+		system.Command(),
 	)
+	// image subsystem shortcuts
+	AddShortcut(cmd, build.Use, "image", "build")
+	AddShortcut(cmd, list.Use("images"), "image", "list")
+	AddShortcut(cmd, pull.Use, "image", "pull")
+	AddShortcut(cmd, push.Use, "image", "push")
+	AddShortcut(cmd, remove.Use("rmi"), "image", "remove")
+	AddShortcut(cmd, tag.Use, "image", "tag")
 	cmd.SetUsageTemplate(defaultUsageTemplate)
 	return cmd
+}
+
+func AddShortcut(cmd *cobra.Command, use string, path ...string) {
+	sub, _, err := cmd.Find(path)
+	if err != nil {
+		panic(err)
+	}
+	target := strings.Join(path, " ")
+	shortcut := *sub
+	shortcut.Use = use
+	//shortcut.Short = fmt.Sprintf("%s (shortcut to `%s %s`)", sub.Short, cmd.Name(), target)
+	shortcut.Aliases = []string{target}
+	shortcut.Annotations = map[string]string{
+		"shortcut-root": path[0],
+	}
+	for pre := sub; ; pre = pre.Parent() {
+		if pre.Name() == path[0] {
+			if pre.PersistentPreRunE != nil {
+				shortcut.PersistentPreRunE = func(alias *cobra.Command, args []string) error {
+					return pre.PersistentPreRunE(alias, args)
+				}
+			}
+			break
+		}
+	}
+	cmd.AddCommand(&shortcut)
 }
 
 type App struct {

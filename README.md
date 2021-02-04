@@ -52,13 +52,9 @@ make ORG=<your-dockerhub-org> build publish
 Have a working `k3s` installation with a working `$HOME/.kube/config` or `$KUBECONFIG`, then:
 
 ```bash
-# Installation on a single-node cluster
-./bin/kim install --agent-image=docker.io/${ORG}/kim
-```
-
-```bash
+# Installation on a single-node cluster is automatic
 # Installation on a multi-node cluster, targeting a Node named "my-builder-node"
-./bin/kim install --agent-image=docker.io/${ORG}/kim --selector k3s.io/hostname=my-builder-node
+./bin/kim install --selector k3s.io/hostname=my-builder-node
 
 ```
 
@@ -76,19 +72,20 @@ Usage:
   kim [command]
 
 Examples:
-  kim build --tag your/image:tag .
+  kim image build --tag your/image:tag .
 
 Available Commands:
-  build       Build an image
   help        Help about any command
+  image       Manage Images
+  system      Manage KIM
+
+Images Shortcuts:
+  build       Build an image
   images      List images
-  info        Display builder information
-  install     Install builder component(s)
   pull        Pull an image
   push        Push an image
   rmi         Remove an image
   tag         Tag an image
-  uninstall   Uninstall builder component(s)
 
 Flags:
   -x, --context string      kubeconfig context for authentication
@@ -96,7 +93,7 @@ Flags:
       --debug-level int     
   -h, --help                help for kim
   -k, --kubeconfig string   kubeconfig for authentication
-  -n, --namespace string    namespace (default "kim")
+  -n, --namespace string    namespace (default "kube-image")
   -v, --version             version for kim
 
 Use "kim [command] --help" for more information about a command.
