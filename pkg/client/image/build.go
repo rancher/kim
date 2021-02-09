@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/containerd/console"
+	"github.com/docker/distribution/reference"
 	buildkit "github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth/authprovider"
@@ -44,7 +45,7 @@ func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) erro
 			Session:       []session.Attachable{authprovider.NewDockerAuthProvider(os.Stdout)},
 		}
 		if len(s.Tag) > 0 {
-			options.Exports = defaultExporter(s.Tag[0])
+			options.Exports = s.defaultExporter()
 		}
 		eg := errgroup.Group{}
 		res, err := bkc.Solve(ctx, nil, options, s.progress(&eg))
@@ -132,13 +133,22 @@ func (s *Build) progress(group *errgroup.Group) chan *buildkit.SolveStatus {
 	return ch
 }
 
-func defaultExporter(tag string) []buildkit.ExportEntry {
+func (s *Build) defaultExporter() []buildkit.ExportEntry {
 	exp := buildkit.ExportEntry{
 		Type:  buildkit.ExporterImage,
 		Attrs: map[string]string{},
 	}
-	if tag != "" {
-		exp.Attrs["name"] = tag
+	if len(s.Tag) > 0 {
+		tags := s.Tag[:]
+		for i, tag := range tags {
+			ref, err := reference.ParseNormalizedNamed(tag)
+			if err != nil {
+				logrus.Warnf("Failed to normalize tag `%s` => %v", tag, err)
+				continue
+			}
+			tags[i] = ref.String()
+		}
+		exp.Attrs["name"] = strings.Join(tags, ",")
 		exp.Attrs["name-canonical"] = ""
 	}
 	return []buildkit.ExportEntry{exp}

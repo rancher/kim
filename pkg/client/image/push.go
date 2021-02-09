@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/docker/distribution/reference"
+	"github.com/pkg/errors"
 	imagesv1 "github.com/rancher/kim/pkg/apis/services/images/v1alpha1"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/rancher/kim/pkg/client/do"
@@ -19,6 +21,11 @@ type Push struct {
 }
 
 func (s *Push) Do(ctx context.Context, k8s *client.Interface, image string) error {
+	named, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse image")
+	}
+	image = named.String()
 	return do.Images(ctx, k8s, func(ctx context.Context, imagesClient imagesv1.ImagesClient) error {
 		ch := make(chan []imagesv1.ImageStatus)
 		eg, ctx := errgroup.WithContext(ctx)
