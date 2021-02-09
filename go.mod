@@ -47,7 +47,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/rancher/wrangler v0.7.3-0.20201002224307-4303c423125a
-	github.com/rancher/wrangler-cli v0.0.0-20200815040857-81c48cf8ab43
+	github.com/rancher/wrangler-cli v0.0.0-20210209192715-4335f41916a5
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.1.1
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9

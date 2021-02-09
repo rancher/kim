@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/docker/distribution/reference"
 	criv1 "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
@@ -52,19 +53,28 @@ func TruncateID(id, prefix string, n int) string {
 	return id
 }
 
+const none = "<none>"
+
 func NormalizeRepoDigest(repoDigests []string) (string, string) {
 	if len(repoDigests) == 0 {
-		return "<none>", "<none>"
+		return none, none
 	}
 	repoDigestPair := strings.Split(repoDigests[0], "@")
 	if len(repoDigestPair) != 2 {
 		return "errorName", "errorRepoDigest"
 	}
-	return repoDigestPair[0], repoDigestPair[1]
+
+	name := repoDigestPair[0]
+	if ref, err := reference.Parse(name); err == nil {
+		name = reference.FamiliarString(ref)
+	}
+	return name, repoDigestPair[1]
 }
 
 func NormalizeRepoTagPair(repoTags []string, imageName string) (repoTagPairs [][]string) {
-	const none = "<none>"
+	if ref, err := reference.Parse(imageName); err == nil {
+		imageName = reference.FamiliarString(ref)
+	}
 	if len(repoTags) == 0 {
 		repoTagPairs = append(repoTagPairs, []string{imageName, none})
 		return
@@ -78,6 +88,8 @@ func NormalizeRepoTagPair(repoTags []string, imageName string) (repoTagPairs [][
 		name := repoTag[:idx]
 		if name == none {
 			name = imageName
+		} else if ref, err := reference.Parse(name); err == nil {
+			name = reference.FamiliarString(ref)
 		}
 		repoTagPairs = append(repoTagPairs, []string{name, repoTag[idx+1:]})
 	}

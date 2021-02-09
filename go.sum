@@ -589,6 +589,7 @@ github.com/grpc-ecosystem/grpc-gateway v1.6.2/go.mod h1:RSKVYQBd5MCa4OVpNdGskqpg
 github.com/grpc-ecosystem/grpc-gateway v1.8.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grpc-ecosystem/grpc-gateway v1.9.0/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grpc-ecosystem/grpc-gateway v1.9.2/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
+github.com/grpc-ecosystem/grpc-gateway v1.9.5 h1:UImYN5qQ8tuGpGE16ZmjvcTtTw24zw1QAp/SlnNrZhI=
 github.com/grpc-ecosystem/grpc-gateway v1.9.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645 h1:MJG/KsmcqMwFAkh8mTnAwhyKoB+sTAnY4CACC110tbU=
 github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645/go.mod h1:6iZfnjpejD4L/4DwD7NryNaJyCQdzwWwH2MWhCA90Kw=
@@ -938,8 +939,8 @@ github.com/rancher/lasso v0.0.0-20200905045615-7fcb07d6a20b/go.mod h1:OhBBBO1pBw
 github.com/rancher/wrangler v0.6.1/go.mod h1:L4HtjPeX8iqLgsxfJgz+JjKMcX2q3qbRXSeTlC/CSd4=
 github.com/rancher/wrangler v0.7.3-0.20201002224307-4303c423125a h1:rx2kSz+dGj6mcZ3jIXBhXFKTUU5KCBIKQ3PM8ycwWLo=
 github.com/rancher/wrangler v0.7.3-0.20201002224307-4303c423125a/go.mod h1:goezjesEKwMxHLfltdjg9DW0xWV7txQee6vOuSDqXAI=
-github.com/rancher/wrangler-cli v0.0.0-20200815040857-81c48cf8ab43 h1:+Bc9QnL9GuZiYxc3Mvm4n6EEjgI5TFQLDGjpRhQbkVk=
-github.com/rancher/wrangler-cli v0.0.0-20200815040857-81c48cf8ab43/go.mod h1:KxpGNhk/oVL6LCfyxESTD1sb8eXRlUxtkbNm06+7dZU=
+github.com/rancher/wrangler-cli v0.0.0-20210209192715-4335f41916a5 h1:teeUnM1azc2nwS0ttqpOE4PDDlf00BlNT75XzMEz6Ks=
+github.com/rancher/wrangler-cli v0.0.0-20210209192715-4335f41916a5/go.mod h1:KxpGNhk/oVL6LCfyxESTD1sb8eXRlUxtkbNm06+7dZU=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
 github.com/robfig/cron v1.1.0/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=
