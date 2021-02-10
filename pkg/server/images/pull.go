@@ -2,30 +2,66 @@ package images
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/platforms"
 	imagesv1 "github.com/rancher/kim/pkg/apis/services/images/v1alpha1"
+	"github.com/rancher/kim/pkg/version"
 	"github.com/sirupsen/logrus"
 	criv1 "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 // Pull server-side impl
 func (s *Server) Pull(ctx context.Context, req *imagesv1.ImagePullRequest) (*imagesv1.ImagePullResponse, error) {
-	// TODO implement pull using native containerd with resolver as is done with push
-	res, err := s.ImageService().PullImage(ctx, &criv1.PullImageRequest{
-		Image: req.Image,
-	})
+	logrus.Debugf("image-pull: %#v", req)
+	var err error
+	if req.Image.Annotations != nil && req.Image.Annotations["images.cattle.io/pull-backend"] == "cri" {
+		err = s.pullCRI(ctx, req.Image, req.Auth)
+	} else {
+		err = s.pullCTD(ctx, req.Image, req.Auth)
+	}
 	if err != nil {
 		return nil, err
 	}
 	return &imagesv1.ImagePullResponse{
-		Image: res.ImageRef,
+		Image: req.Image.Image,
 	}, nil
+}
+
+// pullCTD attempts to pull via containerd directly
+func (s *Server) pullCTD(ctx context.Context, image *criv1.ImageSpec, auth *criv1.AuthConfig) error {
+	ctx = namespaces.WithNamespace(ctx, "k8s.io")
+	resolver := Resolver(auth, nil)
+	platform := platforms.DefaultString()
+	if image.Annotations != nil {
+		platform = image.Annotations["images.cattle.io/pull-platform"]
+	}
+	_, err := s.Containerd.Pull(ctx, image.Image,
+		containerd.WithPullUnpack,
+		containerd.WithSchema1Conversion,
+		containerd.WithPullLabel("io.cattle.images/client", fmt.Sprintf("kim/%s", version.Version)),
+		containerd.WithResolver(resolver),
+		containerd.WithPlatform(platform),
+	)
+	return err
+}
+
+// pullCRI attempts to pull via CRI
+func (s *Server) pullCRI(ctx context.Context, image *criv1.ImageSpec, auth *criv1.AuthConfig) error {
+	logrus.Debugf("image-pull-cri: %#v", image)
+	_, err := s.ImageService().PullImage(ctx, &criv1.PullImageRequest{
+		Auth:  auth,
+		Image: image,
+	})
+	return err
 }
 
 // PullProgress server-side impl
 func (s *Server) PullProgress(req *imagesv1.ImageProgressRequest, srv imagesv1.Images_PullProgressServer) error {
+	logrus.Debugf("image-pull-progress: %#v", req)
 	ctx := namespaces.WithNamespace(srv.Context(), "k8s.io")
 
 	for {

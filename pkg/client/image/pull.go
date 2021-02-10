@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/pkg/errors"
 	imagesv1 "github.com/rancher/kim/pkg/apis/services/images/v1alpha1"
@@ -18,6 +19,7 @@ import (
 
 type Pull struct {
 	Platform string `usage:"Set platform if server is multi-platform capable"`
+	Cri      bool   `usage:"Use the CRI backend to pull instead of containerd"`
 }
 
 func (s *Pull) Do(ctx context.Context, k8s *client.Interface, image string) error {
@@ -56,8 +58,21 @@ func (s *Pull) Do(ctx context.Context, k8s *client.Interface, image string) erro
 		eg.Go(func() error {
 			req := &imagesv1.ImagePullRequest{
 				Image: &criv1.ImageSpec{
-					Image: image,
+					Image:       image,
+					Annotations: map[string]string{},
 				},
+			}
+			if s.Platform != "" {
+				platform, err := platforms.Parse(s.Platform)
+				switch {
+				case err != nil:
+					logrus.Warnf("Failed to parse platform: %v", err)
+				default:
+					req.Image.Annotations["images.cattle.io/pull-platform"] = platforms.Format(platform)
+				}
+			}
+			if s.Cri {
+				req.Image.Annotations["images.cattle.io/pull-backend"] = "cri"
 			}
 			keyring := credentialprovider.NewDockerKeyring()
 			if auth, ok := keyring.Lookup(image); ok {
