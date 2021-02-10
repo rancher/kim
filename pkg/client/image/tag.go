@@ -36,7 +36,7 @@ func (s *Tag) Do(ctx context.Context, k8s *client.Interface, image string, tags 
 		if err != nil {
 			return err
 		}
-		logrus.Debugf("%#v", res)
+		logrus.Debugf("image-tag: %#v", res)
 		return nil
 	})
 }

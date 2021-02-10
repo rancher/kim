@@ -2,8 +2,6 @@ package images
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/containerd/containerd"
@@ -13,9 +11,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	imagesv1 "github.com/rancher/kim/pkg/apis/services/images/v1alpha1"
-	"github.com/rancher/kim/pkg/auth"
 	"github.com/rancher/kim/pkg/progress"
-	"github.com/rancher/kim/pkg/version"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,28 +20,14 @@ var (
 )
 
 // Push server-side impl
-func (s *Server) Push(ctx context.Context, request *imagesv1.ImagePushRequest) (*imagesv1.ImagePushResponse, error) {
+func (s *Server) Push(ctx context.Context, req *imagesv1.ImagePushRequest) (*imagesv1.ImagePushResponse, error) {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	img, err := s.Containerd.ImageService().Get(ctx, request.Image.Image)
+	img, err := s.Containerd.ImageService().Get(ctx, req.Image.Image)
 	if err != nil {
 		return nil, err
 	}
 
-	authorizer := docker.NewDockerAuthorizer(
-		docker.WithAuthClient(http.DefaultClient),
-		docker.WithAuthCreds(func(host string) (string, string, error) {
-			return auth.Parse(request.Auth, host)
-		}),
-		docker.WithAuthHeader(http.Header{
-			"User-Agent": []string{fmt.Sprintf("rancher-kim/%s", version.Version)},
-		}),
-	)
-	resolver := docker.NewResolver(docker.ResolverOptions{
-		Tracker: PushTracker,
-		Hosts: docker.ConfigureDefaultRegistries(
-			docker.WithAuthorizer(authorizer),
-		),
-	})
+	resolver := Resolver(req.Auth, PushTracker)
 	tracker := progress.NewTracker(ctx, PushTracker)
 	s.pushJobs.Store(img.Name, tracker)
 	handler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
