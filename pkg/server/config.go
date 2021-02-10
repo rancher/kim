@@ -11,9 +11,9 @@ import (
 	buildkit "github.com/moby/buildkit/client"
 	"github.com/pkg/errors"
 	"github.com/rancher/kim/pkg/client"
+	"github.com/rancher/kim/pkg/server/images"
 	"github.com/rancher/kim/pkg/version"
 	"google.golang.org/grpc"
-	criv1 "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 const (
@@ -67,12 +67,12 @@ func (c *Config) GetBuildkitImage() (string, error) {
 	return c.BuildkitImage, nil
 }
 
-func (c *Config) Interface(ctx context.Context, config *client.Config) (*Interface, error) {
+func (c *Config) Interface(ctx context.Context, config *client.Config) (*images.Server, error) {
 	k8s, err := config.Interface()
 	if err != nil {
 		return nil, err
 	}
-	server := Interface{
+	server := images.Server{
 		Kubernetes: k8s,
 	}
 
@@ -93,8 +93,6 @@ func (c *Config) Interface(ctx context.Context, config *client.Config) (*Interfa
 		server.Close()
 		return nil, err
 	}
-	server.RuntimeService = criv1.NewRuntimeServiceClient(conn)
-	server.ImageService = criv1.NewImageServiceClient(conn)
 
 	return &server, nil
 }

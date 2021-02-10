@@ -1,4 +1,4 @@
-package action
+package server
 
 import (
 	"context"
@@ -20,21 +20,21 @@ import (
 	"github.com/pkg/errors"
 	imagesv1 "github.com/rancher/kim/pkg/apis/services/images/v1alpha1"
 	"github.com/rancher/kim/pkg/client"
-	"github.com/rancher/kim/pkg/server"
+	imgsvr "github.com/rancher/kim/pkg/server/images"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-func (s *Agent) Run(ctx context.Context) error {
-	backend, err := s.Interface(ctx, &client.DefaultConfig)
+func (a *Agent) Run(ctx context.Context) error {
+	backend, err := a.Interface(ctx, &client.DefaultConfig)
 	if err != nil {
 		return err
 	}
 	defer backend.Close()
 
-	go s.syncImageContent(namespaces.WithNamespace(ctx, s.BuildkitNamespace), backend.Containerd)
-	go s.listenAndServe(ctx, backend)
+	go a.syncImageContent(namespaces.WithNamespace(ctx, a.BuildkitNamespace), backend.Containerd)
+	go a.listenAndServe(ctx, backend)
 
 	select {
 	case <-ctx.Done():
@@ -42,17 +42,17 @@ func (s *Agent) Run(ctx context.Context) error {
 	}
 }
 
-func (s *Agent) listenAndServe(ctx context.Context, backend *server.Interface) error {
+func (a *Agent) listenAndServe(ctx context.Context, backend *imgsvr.Server) error {
 	lc := &net.ListenConfig{}
-	listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("0.0.0.0:%d", s.AgentPort))
+	listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("0.0.0.0:%d", a.AgentPort))
 	if err != nil {
 		return err
 	}
 	defer listener.Close()
 
 	var serverOptions []grpc.ServerOption
-	if s.Tlscert != "" && s.Tlskey != "" && s.Tlscacert != "" {
-		serverCert, err := tls.LoadX509KeyPair(s.Tlscert, s.Tlskey)
+	if a.Tlscert != "" && a.Tlskey != "" && a.Tlscacert != "" {
+		serverCert, err := tls.LoadX509KeyPair(a.Tlscert, a.Tlskey)
 		if err != nil {
 			return err
 		}
@@ -60,8 +60,8 @@ func (s *Agent) listenAndServe(ctx context.Context, backend *server.Interface) e
 			Certificates: []tls.Certificate{serverCert},
 			ClientAuth:   tls.NoClientCert,
 		}
-		if s.Tlscacert != "" {
-			caCert, err := ioutil.ReadFile(s.Tlscacert)
+		if a.Tlscacert != "" {
+			caCert, err := ioutil.ReadFile(a.Tlscacert)
 			if err != nil {
 				return err
 			}
@@ -79,7 +79,7 @@ func (s *Agent) listenAndServe(ctx context.Context, backend *server.Interface) e
 	return server.Serve(listener)
 }
 
-func (s *Agent) syncImageContent(ctx context.Context, ctr *containerd.Client) {
+func (a *Agent) syncImageContent(ctx context.Context, ctr *containerd.Client) {
 	events, errors := ctr.EventService().Subscribe(ctx, `topic~="/images/"`)
 	for {
 		select {
@@ -94,7 +94,7 @@ func (s *Agent) syncImageContent(ctx context.Context, ctr *containerd.Client) {
 			if !ok {
 				return
 			}
-			if evt.Namespace != s.BuildkitNamespace {
+			if evt.Namespace != a.BuildkitNamespace {
 				continue
 			}
 			if err := handleImageEvent(ctx, ctr, evt.Event); err != nil {

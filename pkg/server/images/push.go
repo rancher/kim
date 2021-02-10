@@ -1,4 +1,4 @@
-package server
+package images
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/cmd/ctr/commands"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/remotes"
@@ -20,10 +19,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	PushTracker = docker.NewInMemoryTracker()
+)
+
 // Push server-side impl
-func (i *Interface) Push(ctx context.Context, request *imagesv1.ImagePushRequest) (*imagesv1.ImagePushResponse, error) {
+func (s *Server) Push(ctx context.Context, request *imagesv1.ImagePushRequest) (*imagesv1.ImagePushResponse, error) {
 	ctx = namespaces.WithNamespace(ctx, "k8s.io")
-	img, err := i.Containerd.ImageService().Get(ctx, request.Image.Image)
+	img, err := s.Containerd.ImageService().Get(ctx, request.Image.Image)
 	if err != nil {
 		return nil, err
 	}
@@ -38,18 +41,18 @@ func (i *Interface) Push(ctx context.Context, request *imagesv1.ImagePushRequest
 		}),
 	)
 	resolver := docker.NewResolver(docker.ResolverOptions{
-		Tracker: commands.PushTracker,
+		Tracker: PushTracker,
 		Hosts: docker.ConfigureDefaultRegistries(
 			docker.WithAuthorizer(authorizer),
 		),
 	})
-	tracker := progress.NewTracker(ctx, commands.PushTracker)
-	i.pushes.Store(img.Name, tracker)
+	tracker := progress.NewTracker(ctx, PushTracker)
+	s.pushJobs.Store(img.Name, tracker)
 	handler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		tracker.Add(remotes.MakeRefKey(ctx, desc))
 		return nil, nil
 	})
-	err = i.Containerd.Push(ctx, img.Name, img.Target,
+	err = s.Containerd.Push(ctx, img.Name, img.Target,
 		containerd.WithResolver(resolver),
 		containerd.WithImageHandler(handler),
 	)
@@ -62,14 +65,14 @@ func (i *Interface) Push(ctx context.Context, request *imagesv1.ImagePushRequest
 }
 
 // PushProgress server-side impl
-func (i *Interface) PushProgress(req *imagesv1.ImageProgressRequest, srv imagesv1.Images_PushProgressServer) error {
+func (s *Server) PushProgress(req *imagesv1.ImageProgressRequest, srv imagesv1.Images_PushProgressServer) error {
 	ctx := namespaces.WithNamespace(srv.Context(), "k8s.io")
-	defer i.pushes.Delete(req.Image)
+	defer s.pushJobs.Delete(req.Image)
 
 	timeout := time.After(15 * time.Second)
 
 	for {
-		if tracker, tracking := i.pushes.Load(req.Image); tracking {
+		if tracker, tracking := s.pushJobs.Load(req.Image); tracking {
 			for status := range tracker.(progress.Tracker).Status() {
 				if err := srv.Send(&imagesv1.ImageProgressResponse{Status: status}); err != nil {
 					logrus.Debugf("push-progress-error: %s -> %v", req.Image, err)

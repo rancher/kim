@@ -454,7 +454,7 @@ func (a *Install) NodeRole(_ context.Context, k *client.Interface) error {
 	if _, k3s := nodeList.Items[0].Labels[label]; !k3s {
 		label = "kubernetes.io/hostname"
 	}
-	return errors.Errorf("too many nodes, please specify a selector, e.g. %s=%s", label, nodeList.Items[0].Name)
+	return errors.Errorf("Too many nodes, please specify a selector, e.g. %s=%s", label, nodeList.Items[0].Name)
 }
 
 func (a *Install) containerPort(name string) corev1.ContainerPort {

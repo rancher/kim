@@ -1,6 +1,10 @@
 package client
 
 import (
+	"context"
+	"net"
+	"strconv"
+
 	"github.com/pkg/errors"
 	"github.com/rancher/wrangler/pkg/apply"
 	appsctl "github.com/rancher/wrangler/pkg/generated/controllers/apps"
@@ -10,6 +14,7 @@ import (
 	rbacctl "github.com/rancher/wrangler/pkg/generated/controllers/rbac"
 	rbacctlv1 "github.com/rancher/wrangler/pkg/generated/controllers/rbac/v1"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -95,4 +100,22 @@ func NewInterface(kubecfg, kubectx, kubens string) (*Interface, error) {
 		WithRestrictClusterScoped()
 
 	return c, nil
+}
+
+func GetServiceAddress(_ context.Context, k8s *Interface, port string) (string, error) {
+	// TODO handle multiple addresses
+	endpoints, err := k8s.Core.Endpoints().Get(k8s.Namespace, "builder", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	for _, sub := range endpoints.Subsets {
+		if len(sub.Addresses) > 0 {
+			for _, p := range sub.Ports {
+				if p.Name == port {
+					return net.JoinHostPort(sub.Addresses[0].IP, strconv.FormatInt(int64(p.Port), 10)), nil
+				}
+			}
+		}
+	}
+	return "", errors.New("unknown service port")
 }

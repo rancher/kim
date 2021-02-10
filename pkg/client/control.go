@@ -1,4 +1,4 @@
-package do
+package client
 
 import (
 	"context"
@@ -9,14 +9,13 @@ import (
 
 	buildkit "github.com/moby/buildkit/client"
 	"github.com/pkg/errors"
-	"github.com/rancher/kim/pkg/client"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ControlFunc func(context.Context, *buildkit.Client) error
 
-func Control(ctx context.Context, k8s *client.Interface, fn ControlFunc) error {
+func Control(ctx context.Context, k8s *Interface, fn ControlFunc) error {
 	addr, err := GetServiceAddress(ctx, k8s, "buildkit")
 	if err != nil {
 		return err

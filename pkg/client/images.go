@@ -1,4 +1,4 @@
-package do
+package client
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 	imagesv1 "github.com/rancher/kim/pkg/apis/services/images/v1alpha1"
-	"github.com/rancher/kim/pkg/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	corev1 "k8s.io/api/core/v1"
@@ -16,7 +15,7 @@ import (
 
 type ImagesFunc func(context.Context, imagesv1.ImagesClient) error
 
-func Images(ctx context.Context, k8s *client.Interface, fn ImagesFunc) error {
+func Images(ctx context.Context, k8s *Interface, fn ImagesFunc) error {
 	addr, err := GetServiceAddress(ctx, k8s, "kim")
 	if err != nil {
 		return err
