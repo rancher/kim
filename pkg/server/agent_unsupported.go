@@ -1,6 +1,6 @@
 // +build !linux
 
-package action
+package server
 
 import (
 	"context"
@@ -9,6 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (_ *Agent) Run(_ context.Context) error {
+func (a *Agent) Run(_ context.Context) error {
 	return errors.Errorf("patform not supported: %s/%s", runtime.GOOS, runtime.GOARCH)
 }

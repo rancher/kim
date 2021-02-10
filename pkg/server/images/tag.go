@@ -1,4 +1,4 @@
-package server
+package images
 
 import (
 	"context"
@@ -11,15 +11,15 @@ import (
 )
 
 // Tag image server-side impl, adapted from containerd's `ctr tag` implementation
-func (i *Interface) Tag(ctx context.Context, req *imagesv1.ImageTagRequest) (*imagesv1.ImageTagResponse, error) {
+func (s *Server) Tag(ctx context.Context, req *imagesv1.ImageTagRequest) (*imagesv1.ImageTagResponse, error) {
 	// containerd services require a namespace
-	ctx, done, err := i.Containerd.WithLease(namespaces.WithNamespace(ctx, "k8s.io"))
+	ctx, done, err := s.Containerd.WithLease(namespaces.WithNamespace(ctx, "k8s.io"))
 	if err != nil {
 		return nil, err
 	}
 	defer done(ctx)
-	ref := req.Image.Image // TODO normalize this
-	svc := i.Containerd.ImageService()
+	ref := req.Image.Image
+	svc := s.Containerd.ImageService()
 	img, err := svc.Get(ctx, ref)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (i *Interface) Tag(ctx context.Context, req *imagesv1.ImageTagRequest) (*im
 		}
 		logrus.Debugf("%#v", img)
 	}
-	res, err := i.ImageService.ImageStatus(ctx, &criv1.ImageStatusRequest{Image: req.Image})
+	res, err := s.ImageService().ImageStatus(ctx, &criv1.ImageStatusRequest{Image: req.Image})
 	if err != nil {
 		return nil, err
 	}

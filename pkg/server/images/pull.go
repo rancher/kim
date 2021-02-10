@@ -1,4 +1,4 @@
-package server
+package images
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 )
 
 // Pull server-side impl
-func (i *Interface) Pull(ctx context.Context, req *imagesv1.ImagePullRequest) (*imagesv1.ImagePullResponse, error) {
+func (s *Server) Pull(ctx context.Context, req *imagesv1.ImagePullRequest) (*imagesv1.ImagePullResponse, error) {
 	// TODO implement pull using native containerd with resolver as is done with push
-	res, err := i.ImageService.PullImage(ctx, &criv1.PullImageRequest{
+	res, err := s.ImageService().PullImage(ctx, &criv1.PullImageRequest{
 		Image: req.Image,
 	})
 	if err != nil {
@@ -25,7 +25,7 @@ func (i *Interface) Pull(ctx context.Context, req *imagesv1.ImagePullRequest) (*
 }
 
 // PullProgress server-side impl
-func (i *Interface) PullProgress(req *imagesv1.ImageProgressRequest, srv imagesv1.Images_PullProgressServer) error {
+func (s *Server) PullProgress(req *imagesv1.ImageProgressRequest, srv imagesv1.Images_PullProgressServer) error {
 	ctx := namespaces.WithNamespace(srv.Context(), "k8s.io")
 
 	for {
@@ -33,7 +33,7 @@ func (i *Interface) PullProgress(req *imagesv1.ImageProgressRequest, srv imagesv
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(100 * time.Millisecond):
-			isr, err := i.ImageService.ImageStatus(ctx, &criv1.ImageStatusRequest{
+			isr, err := s.ImageService().ImageStatus(ctx, &criv1.ImageStatusRequest{
 				Image: &criv1.ImageSpec{
 					Image: req.Image,
 				},
@@ -46,7 +46,7 @@ func (i *Interface) PullProgress(req *imagesv1.ImageProgressRequest, srv imagesv
 				logrus.Debugf("pull-progress-image-status-done: %s", isr.Image)
 				return nil
 			}
-			csl, err := i.Containerd.ContentStore().ListStatuses(ctx, "") // TODO is this filter too broad?
+			csl, err := s.Containerd.ContentStore().ListStatuses(ctx, "") // TODO is this filter too broad?
 			if err != nil {
 				logrus.Debugf("pull-progress-content-status-error: %v", err)
 				return err

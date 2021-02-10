@@ -14,7 +14,6 @@ import (
 	"github.com/moby/buildkit/session/auth/authprovider"
 	"github.com/moby/buildkit/util/progress/progressui"
 	"github.com/rancher/kim/pkg/client"
-	"github.com/rancher/kim/pkg/client/do"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -37,7 +36,7 @@ type Build struct {
 }
 
 func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) error {
-	return do.Control(ctx, k8s, func(ctx context.Context, bkc *buildkit.Client) error {
+	return client.Control(ctx, k8s, func(ctx context.Context, bkc *buildkit.Client) error {
 		options := buildkit.SolveOpt{
 			Frontend:      "dockerfile.v0",
 			FrontendAttrs: s.frontendAttrs(),

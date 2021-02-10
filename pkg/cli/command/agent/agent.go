@@ -2,7 +2,6 @@ package agent
 
 import (
 	"github.com/rancher/kim/pkg/server"
-	"github.com/rancher/kim/pkg/server/action"
 	wrangler "github.com/rancher/wrangler-cli"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +16,7 @@ func Command() *cobra.Command {
 }
 
 type CommandSpec struct {
-	action.Agent
+	server.Agent
 }
 
 func (s *CommandSpec) Customize(cmd *cobra.Command) {
