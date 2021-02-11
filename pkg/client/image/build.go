@@ -10,8 +10,10 @@ import (
 	"github.com/containerd/console"
 	"github.com/docker/distribution/reference"
 	buildkit "github.com/moby/buildkit/client"
+	"github.com/moby/buildkit/cmd/buildctl/build"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth/authprovider"
+	"github.com/moby/buildkit/session/sshforward/sshprovider"
 	"github.com/moby/buildkit/util/progress/progressui"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/sirupsen/logrus"
@@ -22,17 +24,17 @@ type Build struct {
 	AddHost  []string `usage:"Add a custom host-to-IP mapping (host:ip)"`
 	BuildArg []string `usage:"Set build-time variables"`
 	//CacheFrom []string `usage:"Images to consider as cache sources"`
-	File  string   `usage:"Name of the Dockerfile (Default is 'PATH/Dockerfile')" short:"f"`
-	Label []string `usage:"Set metadata for an image"`
-	//NoCache   bool     `usage:"Do not use cache when building the image"`
+	File    string   `usage:"Name of the Dockerfile (Default is 'PATH/Dockerfile')" short:"f"`
+	Label   []string `usage:"Set metadata for an image"`
+	NoCache bool     `usage:"Do not use cache when building the image"`
 	//Output    string   `usage:"Output directory or - for stdout. (adv. format: type=local,dest=path)" short:"o"`
 	Progress string `usage:"Set type of progress output (auto, plain, tty). Use plain to show container output" default:"auto"`
 	//Quiet     bool     `usage:"Suppress the build output and print image ID on success" short:"q"`
-	//Secret    []string `usage:"Secret file to expose to the build (only if Buildkit enabled): id=mysecret,src=/local/secret"`
 	Tag    []string `usage:"Name and optionally a tag in the 'name:tag' format" short:"t"`
 	Target string   `usage:"Set the target build stage to build."`
-	//Ssh       []string `usage:"SSH agent socket or keys to expose to the build (only if Buildkit enabled) (format: default|<id>[=<socket>|<key>[,<key>]])"`
-	Pull bool `usage:"Always attempt to pull a newer version of the image"`
+	Pull   bool     `usage:"Always attempt to pull a newer version of the image"`
+	Secret []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" slice:"array"`
+	Ssh    []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" slice:"array"`
 }
 
 func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) error {
@@ -41,11 +43,30 @@ func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) erro
 			Frontend:      "dockerfile.v0",
 			FrontendAttrs: s.frontendAttrs(),
 			LocalDirs:     s.localDirs(path),
-			Session:       []session.Attachable{authprovider.NewDockerAuthProvider(os.Stdout)},
+			Session:       []session.Attachable{authprovider.NewDockerAuthProvider(os.Stderr)},
 		}
 		if len(s.Tag) > 0 {
 			options.Exports = s.defaultExporter()
 		}
+		if len(s.Secret) > 0 {
+			attachable, err := build.ParseSecret(s.Secret)
+			if err != nil {
+				return err
+			}
+			options.Session = append(options.Session, attachable)
+		}
+		if len(s.Ssh) > 0 {
+			configs, err := build.ParseSSH(s.Ssh)
+			if err != nil {
+				return err
+			}
+			attachable, err := sshprovider.NewSSHAgentProvider(configs)
+			if err != nil {
+				return err
+			}
+			options.Session = append(options.Session, attachable)
+		}
+
 		eg := errgroup.Group{}
 		res, err := bkc.Solve(ctx, nil, options, s.progress(&eg))
 		if err != nil {
@@ -88,6 +109,10 @@ func (s *Build) frontendAttrs() map[string]string {
 		m["filename"] = "Dockerfile"
 	} else {
 		m["filename"] = filepath.Base(s.File)
+	}
+	// --no-cache
+	if s.NoCache {
+		m["no-cache"] = ""
 	}
 	// --pull
 	if s.Pull {
