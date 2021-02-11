@@ -27,14 +27,14 @@ type Build struct {
 	File      string   `usage:"Name of the Dockerfile (Default is 'PATH/Dockerfile')" short:"f"`
 	Label     []string `usage:"Set metadata for an image"`
 	NoCache   bool     `usage:"Do not use cache when building the image"`
-	//Output    string   `usage:"Output directory or - for stdout. (adv. format: type=local,dest=path)" short:"o"`
-	Progress string   `usage:"Set type of progress output (auto, plain, tty). Use plain to show container output" default:"auto"`
-	Quiet    bool     `usage:"Suppress the build output and print image ID on success" short:"q"`
-	Tag      []string `usage:"Name and optionally a tag in the 'name:tag' format" short:"t"`
-	Target   string   `usage:"Set the target build stage to build."`
-	Pull     bool     `usage:"Always attempt to pull a newer version of the image"`
-	Secret   []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" slice:"array"`
-	Ssh      []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" slice:"array"`
+	Output    []string `usage:"BuildKit-style output directives (e.g. type=local,dest=path/to/output-dir)" short:"o" slice:"array"`
+	Progress  string   `usage:"Set type of progress output (auto, plain, tty). Use plain to show container output" default:"auto"`
+	Quiet     bool     `usage:"Suppress the build output and print image ID on success" short:"q"`
+	Tag       []string `usage:"Name and optionally a tag in the 'name:tag' format" short:"t"`
+	Target    string   `usage:"Set the target build stage to build."`
+	Pull      bool     `usage:"Always attempt to pull a newer version of the image"`
+	Secret    []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" slice:"array"`
+	Ssh       []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" slice:"array"`
 }
 
 func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) error {
@@ -48,6 +48,13 @@ func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) erro
 		}
 		if len(s.Tag) > 0 {
 			options.Exports = s.defaultExporter()
+		}
+		if len(s.Output) > 0 {
+			exports, err := build.ParseOutput(s.Output)
+			if err != nil {
+				return err
+			}
+			options.Exports = append(options.Exports, exports...)
 		}
 		if len(s.Secret) > 0 {
 			attachable, err := build.ParseSecret(s.Secret)
@@ -120,7 +127,7 @@ func (s *Build) frontendAttrs() map[string]string {
 	}
 	// --no-cache
 	if s.NoCache {
-		m["no-cache"] = ""
+		m["no-cache"] = "" // true
 	}
 	// --pull
 	if s.Pull {
@@ -200,7 +207,7 @@ func (s *Build) defaultExporter() []buildkit.ExportEntry {
 			tags[i] = ref.String()
 		}
 		exp.Attrs["name"] = strings.Join(tags, ",")
-		exp.Attrs["name-canonical"] = ""
+		exp.Attrs["name-canonical"] = "" // true
 	}
 	return []buildkit.ExportEntry{exp}
 }
