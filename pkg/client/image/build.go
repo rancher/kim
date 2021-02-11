@@ -21,20 +21,20 @@ import (
 )
 
 type Build struct {
-	AddHost  []string `usage:"Add a custom host-to-IP mapping (host:ip)"`
-	BuildArg []string `usage:"Set build-time variables"`
-	//CacheFrom []string `usage:"Images to consider as cache sources"`
-	File    string   `usage:"Name of the Dockerfile (Default is 'PATH/Dockerfile')" short:"f"`
-	Label   []string `usage:"Set metadata for an image"`
-	NoCache bool     `usage:"Do not use cache when building the image"`
+	AddHost   []string `usage:"Add a custom host-to-IP mapping (host:ip)"`
+	BuildArg  []string `usage:"Set build-time variables"`
+	CacheFrom []string `usage:"Images to consider as cache sources"`
+	File      string   `usage:"Name of the Dockerfile (Default is 'PATH/Dockerfile')" short:"f"`
+	Label     []string `usage:"Set metadata for an image"`
+	NoCache   bool     `usage:"Do not use cache when building the image"`
 	//Output    string   `usage:"Output directory or - for stdout. (adv. format: type=local,dest=path)" short:"o"`
-	Progress string `usage:"Set type of progress output (auto, plain, tty). Use plain to show container output" default:"auto"`
-	//Quiet     bool     `usage:"Suppress the build output and print image ID on success" short:"q"`
-	Tag    []string `usage:"Name and optionally a tag in the 'name:tag' format" short:"t"`
-	Target string   `usage:"Set the target build stage to build."`
-	Pull   bool     `usage:"Always attempt to pull a newer version of the image"`
-	Secret []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" slice:"array"`
-	Ssh    []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" slice:"array"`
+	Progress string   `usage:"Set type of progress output (auto, plain, tty). Use plain to show container output" default:"auto"`
+	Quiet    bool     `usage:"Suppress the build output and print image ID on success" short:"q"`
+	Tag      []string `usage:"Name and optionally a tag in the 'name:tag' format" short:"t"`
+	Target   string   `usage:"Set the target build stage to build."`
+	Pull     bool     `usage:"Always attempt to pull a newer version of the image"`
+	Secret   []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" slice:"array"`
+	Ssh      []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" slice:"array"`
 }
 
 func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) error {
@@ -42,6 +42,7 @@ func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) erro
 		options := buildkit.SolveOpt{
 			Frontend:      "dockerfile.v0",
 			FrontendAttrs: s.frontendAttrs(),
+			CacheImports:  s.cacheImports(),
 			LocalDirs:     s.localDirs(path),
 			Session:       []session.Attachable{authprovider.NewDockerAuthProvider(os.Stderr)},
 		}
@@ -66,7 +67,9 @@ func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) erro
 			}
 			options.Session = append(options.Session, attachable)
 		}
-
+		if s.Quiet {
+			s.Progress = "none"
+		}
 		eg := errgroup.Group{}
 		res, err := bkc.Solve(ctx, nil, options, s.progress(&eg))
 		if err != nil {
@@ -76,6 +79,11 @@ func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) erro
 			return err
 		}
 		logrus.Debugf("%#v", res)
+		if s.Quiet && res.ExporterResponse != nil {
+			if id := res.ExporterResponse["containerimage.config.digest"]; id != "" {
+				fmt.Fprintln(os.Stdout, id)
+			}
+		}
 		return nil
 	})
 }
@@ -131,6 +139,25 @@ func (s *Build) localDirs(path string) map[string]string {
 		m["dockerfile"] = filepath.Dir(s.File)
 	}
 	return m
+}
+
+func (s *Build) cacheImports() (result []buildkit.CacheOptionsEntry) {
+	exists := map[string]bool{}
+	for _, s := range s.CacheFrom {
+		if exists[s] {
+			continue
+		}
+		exists[s] = true
+
+		result = append(result, buildkit.CacheOptionsEntry{
+			Type: "registry",
+			Attrs: map[string]string{
+				"ref": s,
+			},
+		})
+	}
+
+	return
 }
 
 func (s *Build) progress(group *errgroup.Group) chan *buildkit.SolveStatus {
