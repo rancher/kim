@@ -6,18 +6,16 @@ import (
 	"net"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/pkg/errors"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/rancher/kim/pkg/server"
+	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -70,7 +68,7 @@ func (a *Install) Do(ctx context.Context, k8s *client.Interface) error {
 		return nil
 	}
 
-	retryMe := errors.New("retry me")
+	retryMe := errors.New("timeout waiting for builder to become available")
 	return retry.OnError(
 		wait.Backoff{
 			Steps:    15,
