@@ -2,7 +2,7 @@ package uninstall
 
 import (
 	"github.com/rancher/kim/pkg/client"
-	"github.com/rancher/kim/pkg/client/system/builder"
+	"github.com/rancher/kim/pkg/client/builder"
 	wrangler "github.com/rancher/wrangler-cli"
 	"github.com/spf13/cobra"
 )

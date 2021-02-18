@@ -1,7 +1,6 @@
 package tag
 
 import (
-	"github.com/pkg/errors"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/rancher/kim/pkg/client/image"
 	wrangler "github.com/rancher/wrangler-cli"
@@ -18,6 +17,7 @@ func Command() *cobra.Command {
 		Use:                   Use,
 		Short:                 Short,
 		DisableFlagsInUseLine: true,
+		Args:                  cobra.MinimumNArgs(2),
 	})
 }
 
@@ -26,10 +26,6 @@ type CommandSpec struct {
 }
 
 func (c *CommandSpec) Run(cmd *cobra.Command, args []string) error {
-	if len(args) < 2 {
-		return errors.New("at least two arguments are required")
-	}
-
 	k8s, err := client.DefaultConfig.Interface()
 	if err != nil {
 		return err

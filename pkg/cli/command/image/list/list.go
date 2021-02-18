@@ -35,6 +35,5 @@ func (s *CommandSpec) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
 	return s.List.Do(cmd.Context(), k8s, args)
 }

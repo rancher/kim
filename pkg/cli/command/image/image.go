@@ -1,13 +1,15 @@
 package image
 
 import (
+	"fmt"
+
+	"github.com/rancher/kim/pkg/cli/command/builder/install"
 	"github.com/rancher/kim/pkg/cli/command/image/build"
 	"github.com/rancher/kim/pkg/cli/command/image/list"
 	"github.com/rancher/kim/pkg/cli/command/image/pull"
 	"github.com/rancher/kim/pkg/cli/command/image/push"
 	"github.com/rancher/kim/pkg/cli/command/image/remove"
 	"github.com/rancher/kim/pkg/cli/command/image/tag"
-	"github.com/rancher/kim/pkg/cli/command/system/install"
 	"github.com/rancher/kim/pkg/client"
 	wrangler "github.com/rancher/wrangler-cli"
 	"github.com/sirupsen/logrus"
@@ -15,10 +17,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	Short = "Manage Images"
+)
+
+func Use(sub string) string {
+	return fmt.Sprintf("%s [OPTIONS] COMMAND", sub)
+}
+
 func Command() *cobra.Command {
 	cmd := wrangler.Command(&CommandSpec{}, cobra.Command{
-		Use:                   "image [OPTIONS] COMMAND",
-		Short:                 "Manage Images",
+		Use:                   Use("image"),
+		Short:                 Short,
 		DisableFlagsInUseLine: true,
 		//TraverseChildren:      true,
 	})

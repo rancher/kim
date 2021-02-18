@@ -1,7 +1,6 @@
 package build
 
 import (
-	"errors"
 	"os"
 
 	"github.com/rancher/kim/pkg/client"
@@ -20,6 +19,7 @@ func Command() *cobra.Command {
 		Use:                   Use,
 		Short:                 Short,
 		DisableFlagsInUseLine: true,
+		Args:                  cobra.ExactArgs(1),
 	})
 }
 
@@ -28,10 +28,6 @@ type CommandSpec struct {
 }
 
 func (c *CommandSpec) Run(cmd *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		return errors.New("exactly one argument is required")
-	}
-
 	k8s, err := client.DefaultConfig.Interface()
 	if err != nil {
 		return err

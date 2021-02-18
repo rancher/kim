@@ -1,21 +1,29 @@
-package system
+package builder
 
 import (
-	"github.com/rancher/kim/pkg/cli/command/system/info"
-	"github.com/rancher/kim/pkg/cli/command/system/install"
-	"github.com/rancher/kim/pkg/cli/command/system/uninstall"
+	"fmt"
+
+	"github.com/rancher/kim/pkg/cli/command/builder/install"
+	"github.com/rancher/kim/pkg/cli/command/builder/uninstall"
 	wrangler "github.com/rancher/wrangler-cli"
 	"github.com/spf13/cobra"
 )
 
+const (
+	Short = "Manage Builder(s)"
+)
+
+func Use(sub string) string {
+	return fmt.Sprintf("%s [OPTIONS] COMMAND", sub)
+}
+
 func Command() *cobra.Command {
 	cmd := wrangler.Command(&CommandSpec{}, cobra.Command{
-		Use:                   "system [OPTIONS] COMMAND",
-		Short:                 "Manage KIM",
+		Use:                   Use("builder"),
+		Short:                 Short,
 		DisableFlagsInUseLine: true,
 	})
 	cmd.AddCommand(
-		info.Command(),
 		install.Command(),
 		uninstall.Command(),
 	)
