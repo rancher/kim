@@ -54,7 +54,7 @@ Have a working `k3s` installation with a working `$HOME/.kube/config` or `$KUBEC
 ```bash
 # Installation on a single-node cluster is automatic
 # Installation on a multi-node cluster, targeting a Node named "my-builder-node"
-./bin/kim install --selector k3s.io/hostname=my-builder-node
+kim builder install --selector k3s.io/hostname=my-builder-node
 
 ```
 
@@ -75,9 +75,9 @@ Examples:
   kim image build --tag your/image:tag .
 
 Available Commands:
+  builder     Manage Builder(s)
   help        Help about any command
   image       Manage Images
-  system      Manage KIM
 
 Images Shortcuts:
   build       Build an image
