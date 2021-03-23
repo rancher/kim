@@ -81,6 +81,9 @@ steps:
         from_secret: docker_username
       DOCKER_PASSWORD:
         from_secret: docker_password
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
     when:
       event:
         - tag
@@ -139,6 +142,9 @@ steps:
         from_secret: docker_username
       DOCKER_PASSWORD:
         from_secret: docker_password
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
     when:
       event:
         - tag
@@ -197,6 +203,9 @@ steps:
         from_secret: docker_username
       DOCKER_PASSWORD:
         from_secret: docker_password
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
     when:
       event:
         - tag
