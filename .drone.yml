@@ -9,11 +9,12 @@ platform:
 
 steps:
   - name: prepare
-    image: library/docker:20-git
+    image: library/alpine:3.11
     environment:
       GOLANG: golang:1.16-alpine
       IMAGE: drone.cattle.io/rancher/kim
     commands:
+      - "apk --no-cache add docker-cli git"
       - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
     volumes:
       - name: docker
@@ -105,11 +106,12 @@ platform:
 
 steps:
   - name: prepare
-    image: library/docker:20-git
+    image: library/alpine:3.11
     environment:
       GOLANG: golang:1.16-alpine
       IMAGE: drone.cattle.io/rancher/kim
     commands:
+      - "apk --no-cache add docker-cli git"
       - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
     volumes:
       - name: docker
@@ -158,15 +160,16 @@ name: armhf
 
 platform:
   os: linux
-  arch: arm
+  arch: arm64
 
 steps:
   - name: prepare
-    image: library/docker:20-git
+    image: library/alpine:3.11
     environment:
       GOLANG: golang:1.16-alpine
       IMAGE: drone.cattle.io/rancher/kim
     commands:
+      - "apk --no-cache add docker-cli git"
       - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
     volumes:
       - name: docker
