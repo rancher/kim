@@ -31,7 +31,7 @@ GO_LDFLAGS += -X $(PKG)/pkg/version.Version=$(TAG)
 GO_LDFLAGS += -X $(PKG)/pkg/server.DefaultAgentImage=docker.io/$(ORG)/kim
 
 GO ?= go
-GOLANG ?= docker.io/library/golang:1.15-alpine
+GOLANG ?= golang:1.16-alpine3.12
 
 BIN ?= bin/kim
 ifeq ($(GOOS),windows)
