@@ -81,6 +81,16 @@ image-manifest:
 	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push \
 		$(IMG)
 
+.PHONY: image-manifest-all
+image-manifest-all:
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend \
+		$(IMG) \
+		$(IMG)-amd64 \
+		$(IMG)-arm64 \
+		$(IMG)-arm
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push \
+		$(IMG)
+
 # use this target to test drone builds locally
 .PHONY: drone-local
 drone-local:

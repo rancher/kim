@@ -48,10 +48,6 @@ steps:
     volumes:
       - name: docker
         path: /var/run/docker.sock
-    when:
-      event:
-        - push
-        - pull_request
 
   - name: upload
     image: plugins/github-release
@@ -74,17 +70,19 @@ steps:
         - refs/head/master
         - refs/tags/*
 
-  - name: publish
+  - name: image-push
     image: drone.cattle.io/rancher/kim:possible
     pull: never
-    commands:
-      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} publish
     environment:
       DOCKER_USERNAME:
         from_secret: docker_username
       DOCKER_PASSWORD:
         from_secret: docker_password
+      DOCKER_BUILDKIT: "1"
+      GOLANG: drone.cattle.io/rancher/kim:possible
+    commands:
+      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image-push
     volumes:
       - name: docker
         path: /var/run/docker.sock
@@ -128,28 +126,27 @@ steps:
     image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
+      DOCKER_BUILDKIT: "1"
       GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
       - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
     volumes:
       - name: docker
         path: /var/run/docker.sock
-    when:
-      event:
-        - push
-        - pull_request
 
-  - name: publish
+  - name: image-push
     image: drone.cattle.io/rancher/kim:possible
     pull: never
-    commands:
-      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} publish
     environment:
       DOCKER_USERNAME:
         from_secret: docker_username
       DOCKER_PASSWORD:
         from_secret: docker_password
+      DOCKER_BUILDKIT: "1"
+      GOLANG: drone.cattle.io/rancher/kim:possible
+    commands:
+      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image-push
     volumes:
       - name: docker
         path: /var/run/docker.sock
@@ -193,28 +190,27 @@ steps:
     image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
+      DOCKER_BUILDKIT: "1"
       GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
       - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
     volumes:
       - name: docker
         path: /var/run/docker.sock
-    when:
-      event:
-        - push
-        - pull_request
 
-  - name: publish
+  - name: image-push
     image: drone.cattle.io/rancher/kim:possible
     pull: never
-    commands:
-      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} publish
     environment:
       DOCKER_USERNAME:
         from_secret: docker_username
       DOCKER_PASSWORD:
         from_secret: docker_password
+      DOCKER_BUILDKIT: "1"
+      GOLANG: drone.cattle.io/rancher/kim:possible
+    commands:
+      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image-push
     volumes:
       - name: docker
         path: /var/run/docker.sock
@@ -231,5 +227,45 @@ volumes:
   - name: docker
     host:
       path: /var/run/docker.sock
+
+---
+kind: pipeline
+type: docker
+name: manifest
+
+platform:
+  os: linux
+  arch: arm
+
+steps:
+  - name: manifest
+    image: drone.cattle.io/rancher/kim:possible
+    pull: never
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+      DOCKER_BUILDKIT: "1"
+      GOLANG: drone.cattle.io/rancher/kim:possible
+    commands:
+      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image-manifest-all
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+    when:
+      event:
+        - tag
+      instance:
+        - drone-publish.rancher.io
+      ref:
+        - refs/head/master
+        - refs/tags/*
+
+depends_on:
+  - amd64
+  - arm64
+  - armhf
 
 ...
