@@ -38,11 +38,9 @@ require (
 	github.com/containerd/console v1.0.1
 	github.com/containerd/containerd v1.4.3
 	github.com/containerd/typeurl v1.0.1
-	github.com/docker/cli v20.10.0-beta1.0.20201029214301-1d20b15adc38+incompatible
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker-credential-helpers v0.6.3
 	github.com/docker/go-units v0.4.0
-	github.com/fvbommel/sortorder v1.0.2 // indirect
 	github.com/gogo/googleapis v1.3.2
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
@@ -53,7 +51,6 @@ require (
 	github.com/rancher/wrangler-cli v0.0.0-20210209192715-4335f41916a5
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.1.1
-	github.com/theupdateframework/notary v0.7.0 // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	google.golang.org/grpc v1.29.1
 	k8s.io/api v0.19.0

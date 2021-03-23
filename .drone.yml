@@ -11,7 +11,7 @@ steps:
   - name: prepare
     image: library/docker:20-git
     environment:
-      GOLANG: golang:1.16beta1-alpine
+      GOLANG: golang:1.16-alpine
       IMAGE: drone.cattle.io/rancher/kim
     commands:
       - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
@@ -28,6 +28,7 @@ steps:
     commands:
       - make GOOS=linux   GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
       - make GOOS=linux   GOARCH=arm64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=linux   GOARCH=arm   TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
       - make GOOS=darwin  GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
       - make GOOS=darwin  GOARCH=arm64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
       - make GOOS=windows GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
@@ -106,7 +107,64 @@ steps:
   - name: prepare
     image: library/docker:20-git
     environment:
-      GOLANG: golang:1.16beta1-alpine
+      GOLANG: golang:1.16-alpine
+      IMAGE: drone.cattle.io/rancher/kim
+    commands:
+      - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+
+  - name: image
+    image: drone.cattle.io/rancher/kim:possible
+    pull: never
+    environment:
+      GOLANG: drone.cattle.io/rancher/kim:possible
+    commands:
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+
+  - name: publish
+    image: drone.cattle.io/rancher/kim:possible
+    pull: never
+    commands:
+      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} publish
+    environment:
+      DOCKER_USERNAME:
+        from_secret: docker_username
+      DOCKER_PASSWORD:
+        from_secret: docker_password
+    when:
+      event:
+        - tag
+      instance:
+        - drone-publish.rancher.io
+      ref:
+        - refs/head/master
+        - refs/tags/*
+
+volumes:
+  - name: docker
+    host:
+      path: /var/run/docker.sock
+
+---
+kind: pipeline
+type: docker
+name: armhf
+
+platform:
+  os: linux
+  arch: arm
+
+steps:
+  - name: prepare
+    image: library/docker:20-git
+    environment:
+      GOLANG: golang:1.16-alpine
       IMAGE: drone.cattle.io/rancher/kim
     commands:
       - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."

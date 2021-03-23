@@ -1,6 +1,11 @@
 ifeq ($(GOARCH),)
 GOARCH := $(shell go env GOARCH)
 endif
+ifeq ($(GOARCH),arm)
+ifeq ($(GOARM),)
+GOARM := 7
+endif
+endif
 
 ifeq ($(GOOS),)
 GOOS := $(shell go env GOOS)
@@ -47,7 +52,7 @@ $(BIN):
 .PHONY: dist
 dist:
 	@mkdir -p dist/artifacts
-	@make GOOS=$(GOOS) GOARCH=$(GOARCH) BIN=dist/artifacts/kim-$(GOOS)-$(GOARCH)$(BINSUFFIX) -C .
+	@make GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) BIN=dist/artifacts/kim-$(GOOS)-$(GOARCH)$(BINSUFFIX) -C .
 
 .PHONY: clean
 clean:
