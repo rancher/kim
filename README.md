@@ -41,7 +41,7 @@ because the `containerd` "smart client" code assumes a certain level of co-local
 
 ```bash
 # more to come on this front but builds are currently a very manual affair
-# git clone --branch=trunk https://github.com/rancher/kim.git ~/Projects/rancher/kim
+# git clone --branch=main https://github.com/rancher/kim.git ~/Projects/rancher/kim
 # cd ~/Projects/rancher/kim
 go generate # only necessary when modifying the gRPC protobuf IDL, see Dockerfile for pre-reqs
 make ORG=<your-dockerhub-org> build publish
