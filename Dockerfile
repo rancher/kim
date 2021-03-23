@@ -1,4 +1,4 @@
-ARG GOLANG=golang:1.16-alpine
+ARG GOLANG=golang:1.16-alpine3.12
 FROM ${GOLANG} AS base
 RUN set -x \
  && apk --no-cache add \
