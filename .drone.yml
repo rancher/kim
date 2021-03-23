@@ -166,7 +166,7 @@ name: armhf
 
 platform:
   os: linux
-  arch: arm64
+  arch: arm
 
 steps:
   - name: prepare
