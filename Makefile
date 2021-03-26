@@ -1,11 +1,7 @@
 ifeq ($(GOARCH),)
 GOARCH := $(shell go env GOARCH)
 endif
-ifeq ($(GOARCH),arm)
-ifeq ($(GOARM),)
 GOARM := 7
-endif
-endif
 
 ifeq ($(GOOS),)
 GOOS := $(shell go env GOOS)
@@ -87,6 +83,11 @@ image-manifest-all:
 		$(IMG) \
 		$(IMG)-amd64 \
 		$(IMG)-arm64 \
+		$(IMG)-arm
+	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest annotate \
+		--arch arm \
+		--variant v$(GOARM) \
+		$(IMG) \
 		$(IMG)-arm
 	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push \
 		$(IMG)
