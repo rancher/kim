@@ -15,7 +15,7 @@ type Tag struct {
 
 func (s *Tag) Do(ctx context.Context, k8s *client.Interface, image string, tags []string) error {
 	if named, err := reference.ParseNormalizedNamed(image); err == nil {
-		image = named.String()
+		image = reference.TagNameOnly(named).String()
 	}
 	normalizedTags := make([]string, len(tags))
 	for i, tag := range tags {

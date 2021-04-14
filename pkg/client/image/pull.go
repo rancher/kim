@@ -27,7 +27,7 @@ func (s *Pull) Do(ctx context.Context, k8s *client.Interface, image string) erro
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse image")
 	}
-	image = named.String()
+	image = reference.TagNameOnly(named).String()
 	return client.Images(ctx, k8s, func(ctx context.Context, imagesClient imagesv1.ImagesClient) error {
 		ch := make(chan []imagesv1.ImageStatus)
 		eg, ctx := errgroup.WithContext(ctx)
