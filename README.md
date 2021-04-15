@@ -33,7 +33,7 @@ Fundamentally `kim` is a built on the [Container Runtime Interface (CRI)](https:
 `kim` enables building `k3s`-local images by installing a DaemonSet Pod that runs both `buildkitd` and `kim agent`
 and exposing the gRPC endpoints for these active agents in your cluster via a Service. Once installed, the `kim` CLI
 can inspect your installation and communicate with the backend daemons for image building and manipulation with merely
-the KUBECONFIG that was available when invoking `kim install`. When building `kim` will talk directly to the `buildkit`
+the KUBECONFIG that was available when installing the builder. When building `kim` will talk directly to the `buildkit`
 service but all other interactions with the underlying containerd/CRI are mediated by the `kim agent` (primarily
 because the `containerd` "smart client" code assumes a certain level of co-locality with the `containerd` installation).
 
@@ -101,7 +101,10 @@ Use "kim [command] --help" for more information about a command.
 
 ## Roadmap
 
-- Automated builds for clients on MacOS (amd64/arm64), Windows (amd64), and Linux client/server (amd64/arm64/arm).
+- Automated functional/integration tests to be invoked from CI to catch/prevent regressions.
+- Image export/import, save/load functionality.
+- Smarter automatic-ish bootstrap for non-k3s installations (think EKS support)
+- Scheduling image content to non-builder (or simply, other) nodes in the cluster
 
 # License
 
