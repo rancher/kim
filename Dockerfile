@@ -32,9 +32,11 @@ RUN go generate -x
 ARG ORG=rancher
 ARG PKG=github.com/rancher/kim
 ARG TAG=0.0.0-dev+possible
-RUN make ORG=${ORG} PKG=${PKG} TAG=${TAG} bin/kim
+ARG GOOS=linux
+ARG GOARCH=amd64
+RUN make GOOS=${GOOS} GOARCH=${GOARCH} ORG=${ORG} PKG=${PKG} TAG=${TAG} bin/kim
 RUN file bin/kim
-RUN install -s bin/kim -m 0755 /usr/local/bin
+RUN install -s bin/kim -m 0755 /usr/local/bin || cp -vf bin/kim /usr/local/bin/
 
 FROM scratch AS release
 COPY --from=build /usr/local/bin/kim /bin/kim
