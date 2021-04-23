@@ -290,6 +290,52 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 						"node-role.kubernetes.io/builder": "true",
 					},
 					DNSPolicy: corev1.DNSClusterFirstWithHostNet,
+					InitContainers: []corev1.Container{{
+						Name:  "rshared-tmp",
+						Image: buildkitImage,
+						Env: []corev1.EnvVar{
+							{Name: "_DIR", Value: "/tmp"},
+							{Name: "_PATH", Value: "/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux"},
+						},
+						Command: []string{"sh", "-c"},
+						Args:    []string{"(if mountpoint $_DIR; then nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
+						SecurityContext: &corev1.SecurityContext{
+							Privileged: &privileged,
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{Name: "host-tmp", MountPath: "/tmp"},
+						},
+					}, {
+						Name:  "rshared-buildkit",
+						Image: buildkitImage,
+						Env: []corev1.EnvVar{
+							{Name: "_DIR", Value: "/var/lib/buildkit"},
+							{Name: "_PATH", Value: "/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux"},
+						},
+						Command: []string{"sh", "-c"},
+						Args:    []string{"(if mountpoint $_DIR; then nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
+						SecurityContext: &corev1.SecurityContext{
+							Privileged: &privileged,
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{Name: "host-var-lib-buildkit", MountPath: "/var/lib/buildkit"},
+						},
+					}, {
+						Name:  "rshared-rancher",
+						Image: buildkitImage,
+						Env: []corev1.EnvVar{
+							{Name: "_DIR", Value: "/var/lib/rancher"},
+							{Name: "_PATH", Value: "/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux"},
+						},
+						Command: []string{"sh", "-c"},
+						Args:    []string{"(if mountpoint $_DIR; then nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
+						SecurityContext: &corev1.SecurityContext{
+							Privileged: &privileged,
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{Name: "host-var-lib-rancher", MountPath: "/var/lib/rancher"},
+						},
+					}},
 					Containers: []corev1.Container{{
 						Name:  "buildkit",
 						Image: buildkitImage,
@@ -311,13 +357,13 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							Privileged: &privileged,
 						},
 						VolumeMounts: []corev1.VolumeMount{
-							{Name: "cgroup", MountPath: "/sys/fs/cgroup"},
-							{Name: "run", MountPath: "/run", MountPropagation: &mountPropagationBidirectional},
-							{Name: "tls-ca", MountPath: "/certs/ca", ReadOnly: true},
-							{Name: "tls-server", MountPath: "/certs/server", ReadOnly: true},
-							{Name: "tmp", MountPath: "/tmp", MountPropagation: &mountPropagationBidirectional},
-							{Name: "var-lib-buildkit", MountPath: "/var/lib/buildkit", MountPropagation: &mountPropagationBidirectional},
-							{Name: "var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
+							{Name: "host-ctl", MountPath: "/sys/fs/cgroup"},
+							{Name: "host-run", MountPath: "/run"},
+							{Name: "host-tmp", MountPath: "/tmp", MountPropagation: &mountPropagationBidirectional},
+							{Name: "host-var-lib-buildkit", MountPath: "/var/lib/buildkit", MountPropagation: &mountPropagationBidirectional},
+							{Name: "host-var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
+							{Name: "certs-ca", MountPath: "/certs/ca", ReadOnly: true},
+							{Name: "certs-server", MountPath: "/certs/server", ReadOnly: true},
 						},
 						ReadinessProbe: &buildkitProbe,
 						LivenessProbe:  &buildkitProbe,
@@ -342,75 +388,77 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							Privileged: &privileged,
 						},
 						VolumeMounts: []corev1.VolumeMount{
-							{Name: "etc-pki", MountPath: "/etc/pki", ReadOnly: true},
-							{Name: "etc-ssl", MountPath: "/etc/ssl", ReadOnly: true},
-							{Name: "run", MountPath: "/run", MountPropagation: &mountPropagationBidirectional},
-							{Name: "tls-ca", MountPath: "/certs/ca", ReadOnly: true},
-							{Name: "tls-server", MountPath: "/certs/server", ReadOnly: true},
-							{Name: "var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
+							{Name: "host-ctl", MountPath: "/sys/fs/cgroup"},
+							{Name: "host-etc-pki", MountPath: "/etc/pki", ReadOnly: true},
+							{Name: "host-etc-ssl", MountPath: "/etc/ssl", ReadOnly: true},
+							{Name: "host-run", MountPath: "/run"},
+							{Name: "host-var-lib-buildkit", MountPath: "/var/lib/buildkit", MountPropagation: &mountPropagationBidirectional},
+							{Name: "host-var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
+							{Name: "certs-ca", MountPath: "/certs/ca", ReadOnly: true},
+							{Name: "certs-server", MountPath: "/certs/server", ReadOnly: true},
 						},
 					}},
 					Volumes: []corev1.Volume{
 						{
-							Name: "cgroup", VolumeSource: corev1.VolumeSource{
+							Name: "host-ctl", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/sys/fs/cgroup", Type: &hostPathDirectory,
 								},
 							},
 						},
 						{
-							Name: "etc-pki", VolumeSource: corev1.VolumeSource{
+							Name: "host-etc-pki", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/etc/pki", Type: &hostPathDirectoryOrCreate,
 								},
 							},
 						},
 						{
-							Name: "etc-ssl", VolumeSource: corev1.VolumeSource{
+							Name: "host-etc-ssl", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/etc/ssl", Type: &hostPathDirectoryOrCreate,
 								},
 							},
 						},
 						{
-							Name: "run", VolumeSource: corev1.VolumeSource{
+							Name: "host-run", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/run", Type: &hostPathDirectory,
 								},
 							},
 						},
 						{
-							Name: "tls-ca", VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "kim-tls-ca",
-								},
-							},
-						},
-						{
-							Name: "tls-server", VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "kim-tls-server",
-								},
-							},
-						},
-						{
-							Name: "tmp", VolumeSource: corev1.VolumeSource{
+							Name: "host-tmp", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/tmp", Type: &hostPathDirectory,
 								},
 							},
 						},
 						{
-							Name: "var-lib-buildkit", VolumeSource: corev1.VolumeSource{
+							Name: "host-var-lib-buildkit", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/var/lib/buildkit", Type: &hostPathDirectory,
+									Path: "/var/lib/buildkit", Type: &hostPathDirectoryOrCreate,
 								},
 							},
 						},
 						{
-							Name: "var-lib-rancher", VolumeSource: corev1.VolumeSource{
+							Name: "host-var-lib-rancher", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/var/lib/rancher", Type: &hostPathDirectoryOrCreate,
+								},
+							},
+						},
+						{
+							Name: "certs-ca", VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "kim-tls-ca",
+								},
+							},
+						},
+						{
+							Name: "certs-server", VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "kim-tls-server",
 								},
 							},
 						},
@@ -423,7 +471,7 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 	if apierr.IsAlreadyExists(err) {
 		return errors.Errorf("builder already installed")
 	}
-	return nil
+	return err
 }
 
 func (a *Install) NodeRole(_ context.Context, k *client.Interface) error {
