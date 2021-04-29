@@ -39,7 +39,7 @@ func (s *Server) Tag(ctx context.Context, req *imagesv1.ImageTagRequest) (*image
 				return nil, err
 			}
 		}
-		logrus.Debugf("%#v", img)
+		logrus.Debugf("image-tag: %#v", img)
 	}
 	res, err := s.ImageService().ImageStatus(ctx, &criv1.ImageStatusRequest{Image: req.Image})
 	if err != nil {
