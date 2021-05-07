@@ -19,7 +19,7 @@ import (
 const (
 	defaultAgentPort     = 1233
 	defaultAgentImage    = "docker.io/rancher/kim"
-	defaultBuildkitImage = "docker.io/moby/buildkit:v0.8.1"
+	defaultBuildkitImage = "docker.io/moby/buildkit:v0.8.3"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 type Config struct {
 	AgentImage        string `usage:"Image to run the agent w/ missing tag inferred from version"`
 	AgentPort         int    `usage:"Port that the agent will listen on" default:"1233"`
-	BuildkitImage     string `usage:"BuildKit image for running buildkitd" default:"docker.io/moby/buildkit:v0.8.1"`
+	BuildkitImage     string `usage:"BuildKit image for running buildkitd" default:"docker.io/moby/buildkit:v0.8.3"`
 	BuildkitNamespace string `usage:"BuildKit namespace in containerd (not 'k8s.io')" default:"buildkit"`
 	BuildkitPort      int    `usage:"BuildKit service port" default:"1234"`
 	BuildkitSocket    string `usage:"BuildKit socket address" default:"unix:///run/buildkit/buildkitd.sock"`
