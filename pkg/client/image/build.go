@@ -27,14 +27,14 @@ type Build struct {
 	File      string   `usage:"Name of the Dockerfile (Default is 'PATH/Dockerfile')" short:"f"`
 	Label     []string `usage:"Set metadata for an image"`
 	NoCache   bool     `usage:"Do not use cache when building the image"`
-	Output    []string `usage:"BuildKit-style output directives (e.g. type=local,dest=path/to/output-dir)" short:"o" slice:"array"`
+	Output    []string `usage:"BuildKit-style output directives (e.g. type=local,dest=path/to/output-dir)" short:"o" split:"false"`
 	Progress  string   `usage:"Set type of progress output (auto, plain, tty). Use plain to show container output" default:"auto"`
 	Quiet     bool     `usage:"Suppress the build output and print image ID on success" short:"q"`
 	Tag       []string `usage:"Name and optionally a tag in the 'name:tag' format" short:"t"`
 	Target    string   `usage:"Set the target build stage to build."`
 	Pull      bool     `usage:"Always attempt to pull a newer version of the image"`
-	Secret    []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" slice:"array"`
-	Ssh       []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" slice:"array"`
+	Secret    []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" split:"false"`
+	Ssh       []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" split:"false"`
 }
 
 func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) error {
