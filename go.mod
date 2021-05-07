@@ -6,7 +6,6 @@ replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v14.0.0+incompatible
 	github.com/containerd/containerd => github.com/containerd/containerd v1.4.1-0.20201117152358-0edc412565dc
 	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305 // same as buildkit
-	github.com/rancher/wrangler-cli => github.com/dweomer/wrangler-cli v0.0.0-20210211041905-7db56c0aa4f0
 	k8s.io/api => github.com/k3s-io/kubernetes/staging/src/k8s.io/api v1.19.5-k3s1
 	k8s.io/apiextensions-apiserver => github.com/k3s-io/kubernetes/staging/src/k8s.io/apiextensions-apiserver v1.19.5-k3s1
 	k8s.io/apimachinery => github.com/k3s-io/kubernetes/staging/src/k8s.io/apimachinery v1.19.5-k3s1
@@ -48,7 +47,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/rancher/wrangler v0.7.3-0.20201002224307-4303c423125a
-	github.com/rancher/wrangler-cli v0.0.0-20210209192715-4335f41916a5
+	github.com/rancher/wrangler-cli v0.0.0-20210217230406-95cfa275f52f
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.1.1
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
