@@ -99,6 +99,11 @@ image-manifest-all:
 drone-local:
 	DRONE_TAG=v0.0.0-dev.0+drone drone exec --trusted
 
-.PHONE: dogfood
+.PHONY: dogfood
 dogfood: build
 	DOCKER_IMAGE="./bin/kim image" make image
+
+.PHONY: symlinks
+symlinks: build
+	ln -nsf $(notdir $(BIN)) $(dir $(BIN))/kubectl-builder
+	ln -nsf $(notdir $(BIN)) $(dir $(BIN))/kubectl-image
