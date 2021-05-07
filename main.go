@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/containerd/containerd/pkg/seed"
 	"github.com/rancher/kim/pkg/cli"
@@ -19,7 +20,7 @@ func init() {
 }
 
 func main() {
-	switch _, exe := filepath.Split(os.Args[0]); exe {
+	switch exe := strings.Split(filepath.Base(os.Args[0]), `.exe`)[0]; exe {
 	case "kubectl-builder":
 		command.Main(cli.Builder(exe))
 	case "kubectl-image":
