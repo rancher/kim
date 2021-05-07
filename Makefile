@@ -8,6 +8,8 @@ GOOS := $(shell go env GOOS)
 endif
 
 DOCKER_BUILDKIT ?= 1
+DOCKER_IMAGE    ?= docker image
+DOCKER_MANIFEST ?= docker manifest
 
 ORG ?= rancher
 PKG ?= github.com/rancher/kim
@@ -56,7 +58,7 @@ clean:
 
 .PHONY: image
 image:
-	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build \
+	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) $(DOCKER_IMAGE) build \
 		--build-arg GOLANG=$(GOLANG) \
 		--build-arg ORG=$(ORG) \
 		--build-arg PKG=$(PKG) \
@@ -67,32 +69,36 @@ image:
 
 .PHONY: image-push
 image-push:
-	docker push $(IMG)-$(GOARCH)
+	$(DOCKER_IMAGE) push $(IMG)-$(GOARCH)
 
 .PHONY: image-manifest
 image-manifest:
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend \
+	DOCKER_CLI_EXPERIMENTAL=enabled $(DOCKER_MANIFEST) create --amend \
 		$(IMG) \
 		$(IMG)-$(GOARCH)
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push \
+	DOCKER_CLI_EXPERIMENTAL=enabled $(DOCKER_MANIFEST) push \
 		$(IMG)
 
 .PHONY: image-manifest-all
 image-manifest-all:
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend \
+	DOCKER_CLI_EXPERIMENTAL=enabled $(DOCKER_MANIFEST) create --amend \
 		$(IMG) \
 		$(IMG)-amd64 \
 		$(IMG)-arm64 \
 		$(IMG)-arm
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest annotate \
+	DOCKER_CLI_EXPERIMENTAL=enabled $(DOCKER_MANIFEST) annotate \
 		--arch arm \
 		--variant v$(GOARM) \
 		$(IMG) \
 		$(IMG)-arm
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push \
+	DOCKER_CLI_EXPERIMENTAL=enabled $(DOCKER_MANIFEST) push \
 		$(IMG)
 
 # use this target to test drone builds locally
 .PHONY: drone-local
 drone-local:
 	DRONE_TAG=v0.0.0-dev.0+drone drone exec --trusted
+
+.PHONE: dogfood
+dogfood: build
+	DOCKER_IMAGE="./bin/kim image" make image
