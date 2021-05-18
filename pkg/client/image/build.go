@@ -35,6 +35,7 @@ type Build struct {
 	Pull      bool     `usage:"Always attempt to pull a newer version of the image"`
 	Secret    []string `usage:"Secret value exposed to the build. Format id=secretname|src=filepath" split:"false"`
 	Ssh       []string `usage:"Allow forwarding SSH agent to the builder. Format default|<id>[=<socket>|<key>[,<key>]]" split:"false"`
+	Squash    bool     `usage:"Squash newly built layers into a single new layer"`
 }
 
 func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) error {
@@ -132,6 +133,10 @@ func (s *Build) frontendAttrs() map[string]string {
 	// --pull
 	if s.Pull {
 		m["image-resolve-mode"] = "pull"
+	}
+	// --squash
+	if s.Squash {
+		logrus.Warn("Squash not currently supported by the buildkit backend")
 	}
 	return m
 }
