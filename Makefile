@@ -8,6 +8,7 @@ GOOS := $(shell go env GOOS)
 endif
 
 DOCKER_BUILDKIT ?= 1
+DOCKER_BUILDX   ?= docker buildx
 DOCKER_IMAGE    ?= docker image
 DOCKER_MANIFEST ?= docker manifest
 
@@ -68,6 +69,16 @@ image:
 		--tag $(IMG)-$(GOARCH) \
 	.
 
+.PHONY: image-dist
+image-dist:
+	$(DOCKER_BUILDX) build \
+		--file Dockerfile.dist \
+		--platform $(GOOS)/$(GOARCH) \
+		--build-arg GOARCH=$(GOARCH) \
+		--build-arg GOOS=$(GOOS) \
+		--tag $(IMG)-$(GOARCH) \
+	.
+
 .PHONY: image-push
 image-push:
 	$(DOCKER_IMAGE) push $(IMG)-$(GOARCH)
@@ -108,5 +119,13 @@ dogfood: build
 
 .PHONY: symlinks
 symlinks: build
-	ln -nsf $(notdir $(BIN)) $(dir $(BIN))/kubectl-builder
-	ln -nsf $(notdir $(BIN)) $(dir $(BIN))/kubectl-image
+	ln -nsf $(notdir $(BIN)) $(dir $(BIN))./kubectl-builder
+	ln -nsf $(notdir $(BIN)) $(dir $(BIN))./kubectl-image
+
+.PHONY: test-image-build-with-secret
+test-image-build-with-secret: $(BIN)
+	make KIM=$(shell pwd)/$(BIN) -C testdata/image-build-with-secret/.
+
+.PHONY: test-image-build-with-ssh
+test-image-build-with-ssh: $(BIN)
+	make KIM=$(shell pwd)/$(BIN) -C testdata/image-build-with-ssh/.

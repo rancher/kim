@@ -1,7 +1,7 @@
 ---
 kind: pipeline
 type: docker
-name: amd64
+name: cross
 
 platform:
   os: linux
@@ -20,7 +20,7 @@ steps:
       - name: docker
         path: /var/run/docker.sock
 
-  - name: build
+  - name: bin-dist
     image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
@@ -39,19 +39,23 @@ steps:
       - name: docker
         path: /var/run/docker.sock
 
-  - name: image
+  - name: img-dist
     image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
       DOCKER_BUILDKIT: "1"
       GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=amd64   image-dist
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=arm64   image-dist
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=arm     image-dist
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=ppc64le image-dist
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=s390x   image-dist
     volumes:
       - name: docker
         path: /var/run/docker.sock
 
-  - name: upload
+  - name: bin-upload
     image: plugins/github-release
     settings:
       api_key:
@@ -72,7 +76,7 @@ steps:
         - refs/head/master
         - refs/tags/*
 
-  - name: image-push
+  - name: img-push
     image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
@@ -84,135 +88,11 @@ steps:
       GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
       - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image-push
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
-    when:
-      event:
-        - tag
-      instance:
-        - drone-publish.rancher.io
-      ref:
-        - refs/head/master
-        - refs/tags/*
-
-volumes:
-  - name: docker
-    host:
-      path: /var/run/docker.sock
-
----
-kind: pipeline
-type: docker
-name: arm64
-
-platform:
-  os: linux
-  arch: arm64
-
-steps:
-  - name: prepare
-    image: library/alpine:3.12
-    environment:
-      GOLANG: golang:1.16-alpine3.12
-      IMAGE: drone.cattle.io/rancher/kim
-    commands:
-      - "apk --no-cache add docker-cli git"
-      - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
-
-  - name: image
-    image: drone.cattle.io/rancher/kim:possible
-    pull: never
-    environment:
-      DOCKER_BUILDKIT: "1"
-      GOLANG: drone.cattle.io/rancher/kim:possible
-    commands:
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
-
-  - name: image-push
-    image: drone.cattle.io/rancher/kim:possible
-    pull: never
-    environment:
-      DOCKER_USERNAME:
-        from_secret: docker_username
-      DOCKER_PASSWORD:
-        from_secret: docker_password
-      DOCKER_BUILDKIT: "1"
-      GOLANG: drone.cattle.io/rancher/kim:possible
-    commands:
-      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image-push
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
-    when:
-      event:
-        - tag
-      instance:
-        - drone-publish.rancher.io
-      ref:
-        - refs/head/master
-        - refs/tags/*
-
-volumes:
-  - name: docker
-    host:
-      path: /var/run/docker.sock
-
----
-kind: pipeline
-type: docker
-name: armhf
-
-platform:
-  os: linux
-  arch: arm
-
-steps:
-  - name: prepare
-    image: library/alpine:3.12
-    environment:
-      GOLANG: golang:1.16-alpine3.12
-      IMAGE: drone.cattle.io/rancher/kim
-    commands:
-      - "apk --no-cache add docker-cli git"
-      - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
-
-  - name: image
-    image: drone.cattle.io/rancher/kim:possible
-    pull: never
-    environment:
-      DOCKER_BUILDKIT: "1"
-      GOLANG: drone.cattle.io/rancher/kim:possible
-    commands:
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
-
-  - name: image-push
-    image: drone.cattle.io/rancher/kim:possible
-    pull: never
-    environment:
-      DOCKER_USERNAME:
-        from_secret: docker_username
-      DOCKER_PASSWORD:
-        from_secret: docker_password
-      DOCKER_BUILDKIT: "1"
-      GOLANG: drone.cattle.io/rancher/kim:possible
-    commands:
-      - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} image-push
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=amd64   image-push
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=arm64   image-push
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=arm     image-push
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=ppc64le image-push
+      - make TAG=${DRONE_TAG:-$(git describe --tags --always)} GOARCH=s390x   image-push
     volumes:
       - name: docker
         path: /var/run/docker.sock
@@ -237,10 +117,10 @@ name: manifest
 
 platform:
   os: linux
-  arch: arm
+  arch: amd64
 
 steps:
-  - name: manifest
+  - name: all
     image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
@@ -266,8 +146,6 @@ steps:
         - refs/tags/*
 
 depends_on:
-  - amd64
-  - arm64
-  - armhf
+  - cross
 
 ...

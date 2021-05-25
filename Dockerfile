@@ -11,8 +11,19 @@ RUN set -x \
 FROM base AS docker
 RUN set -x \
  && apk --no-cache add \
+    curl \
     docker-cli \
  && docker --version
+ARG BUILDX_RELEASE=v0.5.1
+RUN set -x \
+ && export BUILDX_ARCH=$(go env GOARCH) \
+ && if [ "${BUILDX_ARCH}" = "arm" ]; then export BUILDX_ARCH="arm-v7"; fi \
+ && mkdir -p /usr/libexec/docker/cli-plugins/ \
+ && curl -fsSL --output /usr/libexec/docker/cli-plugins/docker-buildx \
+    "https://github.com/docker/buildx/releases/download/${BUILDX_RELEASE}/buildx-${BUILDX_RELEASE}.linux-${BUILDX_ARCH}" \
+ && file /usr/libexec/docker/cli-plugins/docker-buildx \
+ && chmod -v +x /usr/libexec/docker/cli-plugins/docker-buildx \
+ && docker buildx version
 
 FROM base AS gobuild
 RUN apk --no-cache add \
