@@ -20,6 +20,12 @@ const (
 	defaultAgentPort     = 1233
 	defaultAgentImage    = "docker.io/rancher/kim"
 	defaultBuildkitImage = "docker.io/moby/buildkit:v0.8.3"
+	buildkitNamespace    = "buildkit"
+
+	K3sContainerdSocket   = "/run/k3s/containerd/containerd.sock"
+	K3sContainerdVolume   = "/var/lib/rancher"
+	StockContainerdSocket = "/run/containerd/containerd.sock"
+	StockContainerdVolume = "/var/lib/containerd"
 )
 
 var (
@@ -29,13 +35,13 @@ var (
 )
 
 type Config struct {
-	AgentImage        string `usage:"Image to run the agent w/ missing tag inferred from version"`
-	AgentPort         int    `usage:"Port that the agent will listen on" default:"1233"`
-	BuildkitImage     string `usage:"BuildKit image for running buildkitd" default:"docker.io/moby/buildkit:v0.8.3"`
-	BuildkitNamespace string `usage:"BuildKit namespace in containerd (not 'k8s.io')" default:"buildkit"`
-	BuildkitPort      int    `usage:"BuildKit service port" default:"1234"`
-	BuildkitSocket    string `usage:"BuildKit socket address" default:"unix:///run/buildkit/buildkitd.sock"`
-	ContainerdSocket  string `usage:"Containerd socket address" default:"/run/k3s/containerd/containerd.sock"`
+	AgentImage       string `usage:"Image to run the agent w/ missing tag inferred from version"`
+	AgentPort        int    `usage:"Port that the agent will listen on" default:"1233"`
+	BuildkitImage    string `usage:"BuildKit image for running buildkitd" default:"docker.io/moby/buildkit:v0.8.3"`
+	BuildkitPort     int    `usage:"BuildKit service port" default:"1234"`
+	BuildkitSocket   string `usage:"BuildKit socket address" default:"unix:///run/buildkit/buildkitd.sock"`
+	ContainerdSocket string `usage:"Containerd socket address (default on k3s \"/run/k3s/containerd/containerd.sock\")"`
+	ContainerdVolume string `usage:"Containerd storage volume (default on k3s \"/var/lib/rancher\")"`
 }
 
 func (c *Config) GetAgentImage() (string, error) {
@@ -86,7 +92,7 @@ func (c *Config) Interface(ctx context.Context, config *client.Config) (*images.
 		return nil, err
 	}
 	server.Containerd, err = containerd.NewWithConn(conn,
-		containerd.WithDefaultNamespace(c.BuildkitNamespace),
+		containerd.WithDefaultNamespace(buildkitNamespace),
 		containerd.WithTimeout(5*time.Second),
 	)
 	if err != nil {

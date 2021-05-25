@@ -33,7 +33,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	}
 	defer backend.Close()
 
-	go a.syncImageContent(namespaces.WithNamespace(ctx, a.BuildkitNamespace), backend.Containerd)
+	go a.syncImageContent(namespaces.WithNamespace(ctx, buildkitNamespace), backend.Containerd)
 	go a.listenAndServe(ctx, backend)
 
 	select {
@@ -94,7 +94,7 @@ func (a *Agent) syncImageContent(ctx context.Context, ctr *containerd.Client) {
 			if !ok {
 				return
 			}
-			if evt.Namespace != a.BuildkitNamespace {
+			if evt.Namespace != buildkitNamespace {
 				continue
 			}
 			if err := handleImageEvent(ctx, ctr, evt.Event); err != nil {
