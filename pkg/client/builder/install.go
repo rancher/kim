@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -298,7 +300,7 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							{Name: "_PATH", Value: "/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux"},
 						},
 						Command: []string{"sh", "-c"},
-						Args:    []string{"(if mountpoint $_DIR; then nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
+						Args:    []string{"(if mountpoint $_DIR; then set -x; nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged: &privileged,
 						},
@@ -313,7 +315,7 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							{Name: "_PATH", Value: "/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux"},
 						},
 						Command: []string{"sh", "-c"},
-						Args:    []string{"(if mountpoint $_DIR; then nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
+						Args:    []string{"(if mountpoint $_DIR; then set -x; nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged: &privileged,
 						},
@@ -321,19 +323,19 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							{Name: "host-var-lib-buildkit", MountPath: "/var/lib/buildkit"},
 						},
 					}, {
-						Name:  "rshared-rancher",
+						Name:  "rshared-containerd",
 						Image: buildkitImage,
 						Env: []corev1.EnvVar{
-							{Name: "_DIR", Value: "/var/lib/rancher"},
+							{Name: "_DIR", Value: a.ContainerdVolume},
 							{Name: "_PATH", Value: "/usr/sbin:/usr/bin:/sbin:/bin:/bin/aux"},
 						},
 						Command: []string{"sh", "-c"},
-						Args:    []string{"(if mountpoint $_DIR; then nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
+						Args:    []string{"(if mountpoint $_DIR; then set -x; nsenter -m -p -t 1 -- env PATH=$_PATH sh -c 'mount --make-rshared $_DIR'; fi) || true"},
 						SecurityContext: &corev1.SecurityContext{
 							Privileged: &privileged,
 						},
 						VolumeMounts: []corev1.VolumeMount{
-							{Name: "host-var-lib-rancher", MountPath: "/var/lib/rancher"},
+							{Name: "host-containerd", MountPath: a.ContainerdVolume},
 						},
 					}},
 					Containers: []corev1.Container{{
@@ -361,7 +363,7 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							{Name: "host-run", MountPath: "/run"},
 							{Name: "host-tmp", MountPath: "/tmp", MountPropagation: &mountPropagationBidirectional},
 							{Name: "host-var-lib-buildkit", MountPath: "/var/lib/buildkit", MountPropagation: &mountPropagationBidirectional},
-							{Name: "host-var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
+							{Name: "host-containerd", MountPath: a.ContainerdVolume, MountPropagation: &mountPropagationBidirectional},
 							{Name: "certs-ca", MountPath: "/certs/ca", ReadOnly: true},
 							{Name: "certs-server", MountPath: "/certs/server", ReadOnly: true},
 						},
@@ -373,7 +375,6 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 						Command: []string{"kim", "--debug", "agent"},
 						Args: []string{
 							fmt.Sprintf("--agent-port=%d", a.AgentPort),
-							fmt.Sprintf("--buildkit-namespace=%s", a.BuildkitNamespace),
 							fmt.Sprintf("--buildkit-socket=%s", a.BuildkitSocket),
 							fmt.Sprintf("--buildkit-port=%d", a.BuildkitPort),
 							fmt.Sprintf("--containerd-socket=%s", a.ContainerdSocket),
@@ -388,12 +389,12 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							Privileged: &privileged,
 						},
 						VolumeMounts: []corev1.VolumeMount{
+							{Name: "host-containerd", MountPath: a.ContainerdVolume, MountPropagation: &mountPropagationBidirectional},
 							{Name: "host-ctl", MountPath: "/sys/fs/cgroup"},
 							{Name: "host-etc-pki", MountPath: "/etc/pki", ReadOnly: true},
 							{Name: "host-etc-ssl", MountPath: "/etc/ssl", ReadOnly: true},
 							{Name: "host-run", MountPath: "/run"},
 							{Name: "host-var-lib-buildkit", MountPath: "/var/lib/buildkit", MountPropagation: &mountPropagationBidirectional},
-							{Name: "host-var-lib-rancher", MountPath: "/var/lib/rancher", MountPropagation: &mountPropagationBidirectional},
 							{Name: "certs-ca", MountPath: "/certs/ca", ReadOnly: true},
 							{Name: "certs-server", MountPath: "/certs/server", ReadOnly: true},
 						},
@@ -442,9 +443,9 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 							},
 						},
 						{
-							Name: "host-var-lib-rancher", VolumeSource: corev1.VolumeSource{
+							Name: "host-containerd", VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/var/lib/rancher", Type: &hostPathDirectoryOrCreate,
+									Path: a.ContainerdVolume, Type: &hostPathDirectoryOrCreate,
 								},
 							},
 						},
@@ -474,6 +475,7 @@ func (a *Install) DaemonSet(_ context.Context, k *client.Interface) error {
 	return err
 }
 
+// NodeRole asserts that the node can run KIM and labels it with the builder role
 func (a *Install) NodeRole(_ context.Context, k *client.Interface) error {
 	nodeList, err := k.Core.Node().List(metav1.ListOptions{
 		LabelSelector: a.Selector,
@@ -487,6 +489,31 @@ func (a *Install) NodeRole(_ context.Context, k *client.Interface) error {
 			node, err := k.Core.Node().Get(nodeList.Items[0].Name, metav1.GetOptions{})
 			if err != nil {
 				return err
+			}
+			// detect container runtime and adjust defaults
+			crv, err := url.Parse(node.Status.NodeInfo.ContainerRuntimeVersion)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse container runtime version")
+			}
+			switch {
+			// embedded containerd
+			case crv.Scheme == "containerd" && strings.Contains(crv.Host, "-k3s"):
+				if a.ContainerdSocket == "" {
+					a.ContainerdSocket = server.K3sContainerdSocket
+				}
+				if a.ContainerdVolume == "" {
+					a.ContainerdVolume = server.K3sContainerdVolume
+				}
+			// external containerd
+			case crv.Scheme == "containerd" /* && !strings.Contains(crv.Host, "-k3s") */ :
+				if a.ContainerdSocket == "" {
+					a.ContainerdSocket = server.StockContainerdSocket
+				}
+				if a.ContainerdVolume == "" {
+					a.ContainerdVolume = server.StockContainerdVolume
+				}
+			default:
+				return errors.Errorf("container runtime `%s` not supported", crv.Scheme)
 			}
 			node.Labels = labels.Merge(node.Labels, labels.Set{
 				"node-role.kubernetes.io/builder": "true",
