@@ -15,6 +15,7 @@ ORG ?= rancher
 PKG ?= github.com/rancher/kim
 TAG ?= $(shell git describe --tags --always)
 IMG := $(ORG)/kim:$(subst +,-,$(TAG))
+REG ?= docker.io
 
 ifeq ($(GO_BUILDTAGS),)
 GO_BUILDTAGS := static_build,netgo,osusergo
@@ -26,7 +27,7 @@ endif
 GO_LDFLAGS ?= -w -extldflags=-static
 GO_LDFLAGS += -X $(PKG)/pkg/version.GitCommit=$(shell git rev-parse HEAD)
 GO_LDFLAGS += -X $(PKG)/pkg/version.Version=$(TAG)
-GO_LDFLAGS += -X $(PKG)/pkg/server.DefaultAgentImage=docker.io/$(ORG)/kim
+GO_LDFLAGS += -X $(PKG)/pkg/server.DefaultAgentImage=$(REG)/$(ORG)/kim
 
 GO ?= go
 GOLANG ?= golang:1.16-alpine3.12
@@ -85,7 +86,9 @@ image-manifest-all:
 		$(IMG) \
 		$(IMG)-amd64 \
 		$(IMG)-arm64 \
-		$(IMG)-arm
+		$(IMG)-arm \
+		$(IMG)-ppc64le \
+		$(IMG)-s390x
 	DOCKER_CLI_EXPERIMENTAL=enabled $(DOCKER_MANIFEST) annotate \
 		--arch arm \
 		--variant v$(GOARM) \
