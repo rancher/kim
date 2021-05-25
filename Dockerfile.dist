@@ -1,0 +1,6 @@
+FROM scratch AS release
+ARG GOARCH=amd64
+ARG GOOS=linux
+COPY dist/artifacts/kim-${GOOS}-${GOARCH} /bin/kim
+ENTRYPOINT ["kim"]
+CMD ["--help"]
