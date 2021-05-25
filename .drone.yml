@@ -27,12 +27,14 @@ steps:
       DOCKER_BUILDKIT: "1"
       GOLANG: drone.cattle.io/rancher/kim:possible
     commands:
-      - make GOOS=linux   GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
-      - make GOOS=linux   GOARCH=arm64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
-      - make GOOS=linux   GOARCH=arm   TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
-      - make GOOS=darwin  GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
-      - make GOOS=darwin  GOARCH=arm64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
-      - make GOOS=windows GOARCH=amd64 TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=linux   GOARCH=amd64    TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=linux   GOARCH=arm64    TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=linux   GOARCH=arm      TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=linux   GOARCH=s390x    TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=linux   GOARCH=ppc64le  TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=darwin  GOARCH=amd64    TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=darwin  GOARCH=arm64    TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
+      - make GOOS=windows GOARCH=amd64    TAG=${DRONE_TAG:-$(git describe --tags --always)} dist
     volumes:
       - name: docker
         path: /var/run/docker.sock
