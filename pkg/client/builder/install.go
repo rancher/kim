@@ -483,6 +483,9 @@ func (a *Install) NodeRole(_ context.Context, k *client.Interface) error {
 	if err != nil {
 		return err
 	}
+	if len(nodeList.Items) == 0 {
+		return errors.New("failed to select any nodes")
+	}
 	if len(nodeList.Items) == 1 {
 		logrus.Infof("Applying node-role `builder` to `%s`", nodeList.Items[0].Name)
 		return retry.RetryOnConflict(retry.DefaultRetry, func() error {
