@@ -23,10 +23,11 @@ import (
 
 // Install the builder.
 type Install struct {
-	Force    bool   `usage:"Force installation by deleting existing builder"`
-	Selector string `usage:"Selector for nodes (label query) to apply builder role"`
-	NoWait   bool   `usage:"Do not wait for backend to become available"`
-	NoFail   bool   `usage:"Do not fail if backend components are already installed"`
+	Force        bool   `usage:"Force installation by deleting existing builder"`
+	Selector     string `usage:"Selector for nodes (label query) to apply builder role"`
+	NoWait       bool   `usage:"Do not wait for backend to become available"`
+	NoFail       bool   `usage:"Do not fail if backend components are already installed"`
+	EndpointAddr string `usage:"Override the endpoint address" hidden:"true"`
 	server.Config
 }
 
@@ -196,6 +197,7 @@ func (a *Install) Service(_ context.Context, k *client.Interface) error {
 					Labels: labels.Set{
 						"app.kubernetes.io/managed-by": "kim",
 					},
+					Annotations: labels.Set{},
 				},
 				Spec: corev1.ServiceSpec{
 					Type: corev1.ServiceTypeNodePort,
@@ -209,6 +211,9 @@ func (a *Install) Service(_ context.Context, k *client.Interface) error {
 					},
 				},
 			}
+			if a.EndpointAddr != "" {
+				svc.Annotations["images.cattle.io/endpoint-override"] = a.EndpointAddr
+			}
 			svc, err = k.Core.Service().Create(svc)
 			return err
 		}
@@ -217,6 +222,12 @@ func (a *Install) Service(_ context.Context, k *client.Interface) error {
 		}
 		if _, ok := svc.Labels["app.kubernetes.io/managed-by"]; !ok {
 			svc.Labels["app.kubernetes.io/managed-by"] = "kim"
+		}
+		if svc.Annotations == nil {
+			svc.Annotations = labels.Set{}
+		}
+		if a.EndpointAddr != "" {
+			svc.Annotations["images.cattle.io/endpoint-override"] = a.EndpointAddr
 		}
 		svc, err = k.Core.Service().Update(svc)
 		return err

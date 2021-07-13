@@ -8,11 +8,13 @@ import (
 )
 
 func Command() *cobra.Command {
-	return wrangler.Command(&CommandSpec{}, cobra.Command{
+	cmd := wrangler.Command(&CommandSpec{}, cobra.Command{
 		Use:                   "install [OPTIONS]",
 		Short:                 "Install builder component(s)",
 		DisableFlagsInUseLine: true,
 	})
+	cmd.Flag("endpoint-addr").Hidden = true // because the "hidden" annotation is not supported
+	return cmd
 }
 
 type CommandSpec struct {
