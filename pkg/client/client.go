@@ -104,6 +104,10 @@ func NewInterface(kubecfg, kubectx, kubens string) (*Interface, error) {
 
 func GetServiceAddress(_ context.Context, k8s *Interface, port string) (string, error) {
 	// TODO handle multiple addresses
+	service, err := k8s.Core.Service().Get(k8s.Namespace, "builder", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
 	endpoints, err := k8s.Core.Endpoints().Get(k8s.Namespace, "builder", metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -112,7 +116,11 @@ func GetServiceAddress(_ context.Context, k8s *Interface, port string) (string, 
 		if len(sub.Addresses) > 0 {
 			for _, p := range sub.Ports {
 				if p.Name == port {
-					return net.JoinHostPort(sub.Addresses[0].IP, strconv.FormatInt(int64(p.Port), 10)), nil
+					host := sub.Addresses[0].IP
+					if override, ok := service.Annotations["images.cattle.io/endpoint-override"]; ok {
+						host = override
+					}
+					return net.JoinHostPort(host, strconv.FormatInt(int64(p.Port), 10)), nil
 				}
 			}
 		}
