@@ -152,6 +152,11 @@ func (a *Install) Secrets(_ context.Context, k *client.Interface) error {
 	domains := []string{
 		fmt.Sprintf("builder.%s.svc", k.Namespace),
 	}
+	if endpointIP := net.ParseIP(a.EndpointAddr); endpointIP != nil {
+		ips = append(ips, endpointIP)
+	} else if a.EndpointAddr != "" {
+		domains = append(domains, a.EndpointAddr)
+	}
 	for _, node := range nodeList.Items {
 		for _, addr := range node.Status.Addresses {
 			switch addr.Type {
