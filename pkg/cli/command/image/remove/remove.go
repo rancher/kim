@@ -3,6 +3,7 @@ package remove
 import (
 	"fmt"
 
+	"github.com/rancher/kim/pkg/cli/command/builder/install"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/rancher/kim/pkg/client/image"
 	wrangler "github.com/rancher/wrangler-cli"
@@ -33,6 +34,10 @@ type CommandSpec struct {
 
 func (c *CommandSpec) Run(cmd *cobra.Command, args []string) error {
 	k8s, err := client.DefaultConfig.Interface()
+	if err != nil {
+		return err
+	}
+	err = install.Check(cmd.Context())
 	if err != nil {
 		return err
 	}
