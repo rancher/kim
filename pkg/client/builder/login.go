@@ -24,7 +24,7 @@ func (s *Login) Do(_ context.Context, k *client.Interface, server string) error 
 		login, err := k.Core.Secret().Get(k.Namespace, "kim-docker-config", metav1.GetOptions{})
 		if apierr.IsNotFound(err) {
 			dockerConfigJSON := credentialprovider.DockerConfigJSON{
-				Auths: map[string]credentialprovider.DockerConfigEntry{
+				Auths: credentialprovider.DockerConfig{
 					server: {
 						Username: s.Username,
 						Password: s.Password,
@@ -51,11 +51,16 @@ func (s *Login) Do(_ context.Context, k *client.Interface, server string) error 
 			_, err = k.Core.Secret().Create(login)
 			return err
 		}
-		var dockerConfigJSON credentialprovider.DockerConfigJSON
+		dockerConfigJSON := credentialprovider.DockerConfigJSON{
+			Auths: credentialprovider.DockerConfig{},
+		}
 		if dockerConfigJSONBytes, ok := login.Data[corev1.DockerConfigJsonKey]; ok {
 			if err := json.Unmarshal(dockerConfigJSONBytes, &dockerConfigJSON); err != nil {
 				return err
 			}
+		}
+		if dockerConfigJSON.Auths == nil {
+			dockerConfigJSON.Auths = credentialprovider.DockerConfig{}
 		}
 		dockerConfigJSON.Auths[server] = credentialprovider.DockerConfigEntry{
 			Username: s.Username,
