@@ -3,6 +3,7 @@ package build
 import (
 	"os"
 
+	"github.com/rancher/kim/pkg/cli/command/builder/install"
 	"github.com/rancher/kim/pkg/client"
 	"github.com/rancher/kim/pkg/client/image"
 	wrangler "github.com/rancher/wrangler-cli"
@@ -36,6 +37,10 @@ func (c *CommandSpec) Run(cmd *cobra.Command, args []string) error {
 	if path == "" || path == "." {
 		path, err = os.Getwd()
 	}
+	if err != nil {
+		return err
+	}
+	err = install.Check(cmd.Context())
 	if err != nil {
 		return err
 	}
