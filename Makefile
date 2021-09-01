@@ -31,7 +31,7 @@ GO_LDFLAGS += -X $(PKG)/pkg/version.Version=$(TAG)
 GO_LDFLAGS += -X $(PKG)/pkg/server.DefaultAgentImage=$(REG)/$(ORG)/kim
 
 GO ?= go
-GOLANG ?= golang:1.16-alpine3.12
+GOLANG ?= golang:1.16-alpine3.14
 
 BIN ?= bin/kim
 ifeq ($(GOOS),windows)
