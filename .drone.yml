@@ -120,7 +120,18 @@ platform:
   arch: amd64
 
 steps:
-  - name: all
+  - name: prepare
+    image: library/alpine:3.14
+    environment:
+      GOLANG: golang:1.16-alpine3.14
+      IMAGE: drone.cattle.io/rancher/kim
+    commands:
+      - "apk --no-cache add docker-cli git"
+      - "docker build --target docker --build-arg GOLANG --tag $${IMAGE}:possible --tag $${IMAGE}:$(git rev-parse --short HEAD) ."
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+  - name: manifest-all
     image: drone.cattle.io/rancher/kim:possible
     pull: never
     environment:
@@ -144,6 +155,11 @@ steps:
       ref:
         - refs/head/master
         - refs/tags/*
+
+volumes:
+  - name: docker
+    host:
+      path: /var/run/docker.sock
 
 depends_on:
   - cross
