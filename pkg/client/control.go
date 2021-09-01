@@ -9,6 +9,7 @@ import (
 
 	buildkit "github.com/moby/buildkit/client"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -21,7 +22,7 @@ func Control(ctx context.Context, k8s *Interface, fn ControlFunc) error {
 		return err
 	}
 
-	tmp, err := ioutil.TempDir("", "kim-tls-*")
+	tmp, err := ioutil.TempDir("", "kim-private-*")
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp directory")
 	}
@@ -61,6 +62,26 @@ func Control(ctx context.Context, k8s *Interface, fn ControlFunc) error {
 	if pem, ok := secret.Data[corev1.TLSPrivateKeyKey]; ok {
 		if err = ioutil.WriteFile(tmpKey, pem, 0600); err != nil {
 			return errors.Wrap(err, "failed to write temporary client key")
+		}
+	}
+
+	// docker-config
+	secret, err = k8s.Core.Secret().Get(k8s.Namespace, "kim-docker-config", metav1.GetOptions{})
+	switch {
+	case err != nil:
+		logrus.Debugf("skipping kim-docker-config with error: %v", err)
+	case secret.Type != corev1.SecretTypeDockerConfigJson:
+		logrus.Warnf("skipping kim-docker-config with unsupported type: %s", secret.Type)
+	case secret.Type == corev1.SecretTypeDockerConfigJson:
+		if dockerConfigJSONBytes, ok := secret.Data[corev1.DockerConfigJsonKey]; ok {
+			if err := ioutil.WriteFile(filepath.Join(tmp, "config.json"), dockerConfigJSONBytes, 0600); err != nil {
+				return errors.Wrap(err, "failed to write docker config")
+			}
+			if err := os.Setenv("DOCKER_CONFIG", tmp); err != nil {
+				return errors.Wrap(err, "failed to setup docker config")
+			}
+		} else {
+			logrus.Warnf("skipping kim-docker-config with missing value %s", corev1.DockerConfigJsonKey)
 		}
 	}
 

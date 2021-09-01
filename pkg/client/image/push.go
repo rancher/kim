@@ -13,7 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	criv1 "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
-	"k8s.io/kubernetes/pkg/credentialprovider"
 )
 
 type Push struct {
@@ -58,7 +57,7 @@ func (s *Push) Do(ctx context.Context, k8s *client.Interface, image string) erro
 					Image: image,
 				},
 			}
-			keyring := credentialprovider.NewDockerKeyring()
+			keyring := client.GetDockerKeyring(ctx, k8s)
 			if auth, ok := keyring.Lookup(image); ok {
 				req.Auth = &criv1.AuthConfig{
 					Username:      auth[0].Username,
