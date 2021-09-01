@@ -48,7 +48,11 @@ func (s *Build) Do(ctx context.Context, k8s *client.Interface, path string) erro
 			Session:       []session.Attachable{authprovider.NewDockerAuthProvider(os.Stderr)},
 		}
 		if len(s.Tag) > 0 {
-			options.Exports = s.defaultExporter()
+			exports, err := s.defaultExporter()
+			if err != nil {
+				return err
+			}
+			options.Exports = exports
 		}
 		if len(s.Output) > 0 {
 			exports, err := build.ParseOutput(s.Output)
@@ -196,7 +200,7 @@ func (s *Build) progress(group *errgroup.Group) chan *buildkit.SolveStatus {
 	return ch
 }
 
-func (s *Build) defaultExporter() []buildkit.ExportEntry {
+func (s *Build) defaultExporter() ([]buildkit.ExportEntry, error) {
 	exp := buildkit.ExportEntry{
 		Type:  buildkit.ExporterImage,
 		Attrs: map[string]string{},
@@ -206,13 +210,12 @@ func (s *Build) defaultExporter() []buildkit.ExportEntry {
 		for i, tag := range tags {
 			ref, err := reference.ParseNormalizedNamed(tag)
 			if err != nil {
-				logrus.Warnf("Failed to normalize tag `%s` => %v", tag, err)
-				continue
+				return nil, err
 			}
-			tags[i] = ref.String()
+			tags[i] = reference.TagNameOnly(ref).String()
 		}
 		exp.Attrs["name"] = strings.Join(tags, ",")
 		exp.Attrs["name-canonical"] = "" // true
 	}
-	return []buildkit.ExportEntry{exp}
+	return []buildkit.ExportEntry{exp}, nil
 }
