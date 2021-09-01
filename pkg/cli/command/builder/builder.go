@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/rancher/kim/pkg/cli/command/builder/install"
+	"github.com/rancher/kim/pkg/cli/command/builder/login"
 	"github.com/rancher/kim/pkg/cli/command/builder/uninstall"
 	wrangler "github.com/rancher/wrangler-cli"
 	"github.com/spf13/cobra"
@@ -26,6 +27,7 @@ func Command() *cobra.Command {
 	cmd.AddCommand(
 		install.Command(),
 		uninstall.Command(),
+		login.Command(),
 	)
 	return cmd
 }

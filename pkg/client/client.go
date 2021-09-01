@@ -14,7 +14,11 @@ import (
 	rbacctl "github.com/rancher/wrangler/pkg/generated/controllers/rbac"
 	rbacctlv1 "github.com/rancher/wrangler/pkg/generated/controllers/rbac/v1"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
+	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/credentialprovider"
+	"k8s.io/kubernetes/pkg/credentialprovider/secrets"
 )
 
 const (
@@ -126,4 +130,18 @@ func GetServiceAddress(_ context.Context, k8s *Interface, port string) (string, 
 		}
 	}
 	return "", errors.New("unknown service port")
+}
+
+func GetDockerKeyring(_ context.Context, k8s *Interface) credentialprovider.DockerKeyring {
+	secret, err := k8s.Core.Secret().Get(k8s.Namespace, "kim-docker-config", metav1.GetOptions{})
+	if err != nil {
+		logrus.Debug(err)
+		return credentialprovider.NewDockerKeyring()
+	}
+	keyring, err := secrets.MakeDockerKeyring([]corev1.Secret{*secret}, nil)
+	if err != nil {
+		logrus.Debug(err)
+		return credentialprovider.NewDockerKeyring()
+	}
+	return keyring
 }
