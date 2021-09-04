@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/api/events"
@@ -14,6 +15,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -141,21 +143,24 @@ func copyImageContent(ctx context.Context, ctr *containerd.Client, name string, 
 		return err
 	}
 	contentStore := ctr.ContentStore()
-	toCtx := namespaces.WithNamespace(ctx, "k8s.io")
-	handler := images.Handlers(images.ChildrenHandler(contentStore), copyImageContentFunc(toCtx, contentStore, img))
-	if err = images.Walk(ctx, handler, img.Target); err != nil {
+	fromCtx, fromCancel := context.WithTimeout(ctx, time.Minute*3)
+	defer fromCancel()
+	toCtx := namespaces.WithNamespace(fromCtx, "k8s.io")
+	handler := images.Handlers(images.ChildrenHandler(contentStore), copyImageContentHandler(toCtx, contentStore, img))
+	if err = images.Walk(fromCtx, handler, img.Target); err != nil {
 		return err
 	}
 	return fn(toCtx, imageStore, img)
 }
 
-func copyImageContentFunc(toCtx context.Context, contentStore content.Store, img images.Image) images.HandlerFunc {
+func copyImageContentHandler(toCtx context.Context, contentStore content.Store, img images.Image) images.HandlerFunc {
 	return func(fromCtx context.Context, desc ocispec.Descriptor) (children []ocispec.Descriptor, err error) {
 		logrus.Debugf("copy-image-content: media-type=%v, digest=%v", desc.MediaType, desc.Digest)
-		info, err := contentStore.Info(fromCtx, desc.Digest)
+		info, err := waitImageContentInfo(fromCtx, contentStore, desc)
 		if err != nil {
 			return children, err
 		}
+		logrus.Debugf("copy-image-content: info=%#v", info)
 		ra, err := contentStore.ReaderAt(fromCtx, desc)
 		if err != nil {
 			return children, err
@@ -163,8 +168,8 @@ func copyImageContentFunc(toCtx context.Context, contentStore content.Store, img
 		defer ra.Close()
 		wopts := []content.WriterOpt{content.WithRef(img.Name)}
 		if _, err := contentStore.Info(toCtx, desc.Digest); errdefs.IsNotFound(err) {
-			// if the image does not already exist in the target namespace we supply the descriptor here so as to
-			// ensure that it is created with proper size information. if the image already exist the size for the digest
+			// if the image does not already exist in the target namespace we supply the descriptor here to ensure
+			// that it is created with proper size information. if the image already exists the size for the digest
 			// for the to-be updated image is sourced from what is passed to content.Copy
 			wopts = append(wopts, content.WithDescriptor(desc))
 		}
@@ -179,4 +184,35 @@ func copyImageContentFunc(toCtx context.Context, contentStore content.Store, img
 		}
 		return children, err
 	}
+}
+
+// waitImageContentInfo waits for all referenced content to become available because buildkit can trigger image
+// creation events before all referenced content is fully available (via unpack)
+func waitImageContentInfo(ctx context.Context, contentStore content.Store, desc ocispec.Descriptor) (content.Info, error) {
+	available, _, _, missing, err := images.Check(ctx, contentStore, desc, platforms.Default())
+	if err != nil {
+		return content.Info{}, err
+	}
+	if !available && len(missing) > 0 {
+		for _, m := range missing {
+			logrus.Debugf("wait-image-content: missing=%#v", m)
+		next:
+			for {
+				select {
+				case <-ctx.Done():
+					return content.Info{}, ctx.Err()
+				case <-time.After(100 * time.Millisecond):
+					info, err := contentStore.Info(ctx, desc.Digest)
+					if err == nil {
+						logrus.Debugf("wait-image-content: available=%#v", info)
+						break next
+					}
+					if !errdefs.IsNotFound(err) {
+						return content.Info{}, err
+					}
+				}
+			}
+		}
+	}
+	return contentStore.Info(ctx, desc.Digest)
 }
