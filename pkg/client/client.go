@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -13,10 +15,10 @@ import (
 	corectlv1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	rbacctl "github.com/rancher/wrangler/pkg/generated/controllers/rbac"
 	rbacctlv1 "github.com/rancher/wrangler/pkg/generated/controllers/rbac/v1"
-	"github.com/rancher/wrangler/pkg/kubeconfig"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 	"k8s.io/kubernetes/pkg/credentialprovider/secrets"
 )
@@ -51,7 +53,20 @@ type Interface struct {
 }
 
 func NewInterface(kubecfg, kubectx, kubens string) (*Interface, error) {
-	cc := kubeconfig.GetNonInteractiveClientConfigWithContext(kubecfg, kubectx)
+	if err := os.Setenv(clientcmd.RecommendedConfigPathEnvVar, kubecfg); err != nil {
+		logrus.Warn(err)
+	}
+	lr := clientcmd.NewDefaultClientConfigLoadingRules()
+	lr.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	if home, err := os.UserHomeDir(); err == nil {
+		lr.Precedence = append(lr.Precedence, filepath.Join(home, ".kube", "k3s.yaml"))
+	}
+	lr.Precedence = append(lr.Precedence, "/etc/rancher/k3s/k3s.yaml")
+	cc := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(lr, &clientcmd.ConfigOverrides{
+		ClusterDefaults: clientcmd.ClusterDefaults,
+		CurrentContext:  kubectx,
+	})
+
 	ns, _, err := cc.Namespace()
 	if err != nil {
 		return nil, err
