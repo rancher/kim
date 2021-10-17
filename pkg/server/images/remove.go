@@ -19,6 +19,9 @@ func (s *Server) Remove(ctx context.Context, req *imagesv1.ImageRemoveRequest) (
 		return nil, err
 	}
 	defer done(ctx)
+	if req.Image == nil {
+		return &imagesv1.ImageRemoveResponse{}, nil
+	}
 	img, err := s.Containerd.ImageService().Get(ctx, req.Image.Image)
 	if err != nil {
 		return nil, err
