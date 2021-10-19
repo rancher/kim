@@ -216,6 +216,7 @@ func (s *Build) defaultExporter() ([]buildkit.ExportEntry, error) {
 		}
 		exp.Attrs["name"] = strings.Join(tags, ",")
 		exp.Attrs["name-canonical"] = "" // true
+		exp.Attrs["unpack"] = "true"
 	}
 	return []buildkit.ExportEntry{exp}, nil
 }
