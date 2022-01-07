@@ -6,6 +6,7 @@ import (
 
 	"github.com/rancher/kim/pkg/cli/command/agent"
 	"github.com/rancher/kim/pkg/cli/command/builder"
+	"github.com/rancher/kim/pkg/cli/command/completion"
 	"github.com/rancher/kim/pkg/cli/command/image"
 	"github.com/rancher/kim/pkg/cli/command/image/build"
 	"github.com/rancher/kim/pkg/cli/command/image/list"
@@ -71,6 +72,7 @@ func Main() *cobra.Command {
 		agent.Command(),
 		image.Command(),
 		builder.Command(),
+		completion.Command(),
 	)
 	// image subsystem shortcuts
 	AddShortcut(app, build.Use, "image", "build")
